@@ -126,6 +126,9 @@ typedef enum {
     TOKEN_CHAR_LITERAL,
     TOKEN_STR_LITERAL,
 
+    // --- Comments ---
+    TOKEN_COMMENT,
+
     // --- Special Tokens ---
     TOKEN_EOF,
     TOKEN_ERROR

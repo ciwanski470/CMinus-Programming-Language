@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -Iinclude
 
-TARGET = my_app
+TARGET = main
 BUILD_DIR = build
 SRC = $(wildcard src/*.c)
 OBJ = $(patsubst src/%.c, $(BUILD_DIR)/%.o, $(SRC))

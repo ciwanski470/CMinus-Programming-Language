@@ -1,0 +1,9 @@
+int main() {
+    int a = 1 - 1;
+    int b = -2;
+
+    double c = 1e-9;
+}
+
+/* this is a comment * / */ */
+// this is also a comment 1 */
