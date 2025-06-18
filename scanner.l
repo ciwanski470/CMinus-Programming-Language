@@ -35,6 +35,8 @@ ENCODING_PREFIX     ((u8)|[UuL])
 %%
 
 (" "|\t|\n)             { /* Skip whitespace */ }
+"//"[^\n]*                  { return TOKEN_COMMENT; }
+"/*"([^*]|\*+[^*/])*"*"+"/"   { return TOKEN_COMMENT; }
 
 <<EOF>>                 { return TOKEN_EOF; }
     
@@ -82,9 +84,6 @@ ENCODING_PREFIX     ((u8)|[UuL])
 "_Noreturn"             { return TOKEN_NORETURN; }
 "_Static_assert"        { return TOKEN_STATIC_ASSERT; }
 "_Thread_local"         { return TOKEN_THREAD_LOCAL; }
-
-"//"[^\n]*                  { return TOKEN_COMMENT; }
-"/*"([^*]|\*+[^*/])*"*"+"/"   { return TOKEN_COMMENT; }
 
 {DEC_FLOAT_CONST}       { return TOKEN_FLOAT_LITERAL; } // Decimal float
 {HEX_FLOAT_CONST}       { return TOKEN_FLOAT_LITERAL; } // Hexadecimal float
