@@ -12,9 +12,5 @@ int main() {
         return 1;
     }
 
-    while (1) {
-        int t = yylex();
-        if (t == TOKEN_EOF) break;
-        printf("token: %d text: %s\n", t, yytext);
-    }
+    
 }

@@ -1,10 +1,11 @@
 // File contains the enum for all types of tokens the scanner can read
+// Note that single character tokens are not given an enum, and are instead handled as chars
 
 #pragma once
 
 typedef enum {
     // --- Keywords ---
-    AUTO,
+    AUTO = 256, // Prevents collisions with the char values of single characters
     BREAK,
     CASE,
     CHAR,
@@ -17,8 +18,8 @@ typedef enum {
     ENUM,
     EXTERN,
     FLOAT,
-    FUNC_NAME,
     FOR,
+    FUNC_NAME,
     GOTO,
     IF,
     INLINE,
@@ -52,28 +53,15 @@ typedef enum {
 
     // --- Operators ---
 
-    // Arithmetic
-    PLUS,             // +
-    MINUS,            // -
-    ASTERISK,         // *
-    SLASH,            // /
-    PERCENT,          // %
-
     // Bitwise
-    BIT_AND,          // &
-    BIT_OR,           // |
-    BIT_XOR,          // ^
-    BIT_NOT,          // ~
     LSHIFT,           // <<
     RSHIFT,           // >>
 
     // Logical
-    LOGIC_AND,        // &&
-    LOGIC_OR,         // ||
-    LOGIC_NOT,        // !
+    AND,              // &&
+    OR,               // ||
 
     // Assignment
-    ASSIGN,           // =
     PLUS_ASSIGN,      // +=
     MINUS_ASSIGN,     // -=
     MUL_ASSIGN,       // *=
@@ -94,42 +82,21 @@ typedef enum {
     // Comparison
     EQUAL,            // ==
     NOT_EQUAL,        // !=
-    LESS,             // <
-    GREATER,          // >
     LEQ,              // <=
     GEQ,              // >=
-
-    // Ternary
-    QUESTION,         // ?
-    COLON,            // :
-
-    // Punctuation
-    COMMA,            // ,
-    SEMICOLON,        // ;
-    DOT,              // .
     ARROW,            // ->
     ELLIPSIS,         // ...
 
-    // Brackets
-    LPAREN,           // (
-    RPAREN,           // )
-    LBRACKET,         // [
-    RBRACKET,         // ]
-    LBRACE,           // {
-    RBRACE,           // }
-
-    // --- Identifiers ---
+    // --- Identifier-like tokens ---
     IDENTIFIER,
+    TYPEDEF_NAME,
+    ENUM_CONST,
 
-    // --- Literals ---
-    INT_LITERAL,
-    FLOAT_LITERAL,
+    // --- Constants and literals ---
+    CONST_INT,
+    CONST_FLOAT,
     STR_LITERAL,
 
-    // --- Comments ---
-    COMMENT,
-
     // --- Special Tokens ---
-    END_OF_FILE,
     ERROR
 } token_t;

@@ -2,8 +2,8 @@
 #include <stdio.h>
 #include "token_types.h"
 
-extern void yyerror(const char *);
-
+extern void yyerror(const char *); // Prints grammar errors
+extern int sym_type(const char *); // Returns symbol type from the symbol table
 
 static void comment(void);
 %}
@@ -30,7 +30,7 @@ WS  [ \t\v\n\f]
 
 (" "|\t|\n)                         { /* Skip whitespace */ }
 "//"[^\n]*                          { /* Skip comment */ }
-"/*"([^*]|\*+[^*/])*"*"+"/"         { comment(); }
+"/*"                                { comment(); } // Goes until the closing '*/'
 
 <<EOF>>                             { return END_OF_FILE; }
     
@@ -80,28 +80,23 @@ WS  [ \t\v\n\f]
 "_Thread_local"                     { return THREAD_LOCAL; }
 "__func__"                          { return FUNC_NAME; }
 
-{HP}{H}+{IS}?				        { return INT_LITERAL; }
-{NZ}{D}*{IS}?				        { return INT_LITERAL; }
-"0"{O}*{IS}?				        { return INT_LITERAL; }
-{CP}?"'"([^'\\\n]|{ES})+"'"         { return INT_LITERAL; }
+{HP}{H}+{IS}?				        { return CONST_INT; }
+{NZ}{D}*{IS}?				        { return CONST_INT; }
+"0"{O}*{IS}?				        { return CONST_INT; }
+{CP}?"'"([^'\\\n]|{ES})+"'"         { return CONST_INT; }
 
-{D}+{E}{FS}?				        { return FLOAT_LITERAL; }
-{D}*"."{D}+{E}?{FS}?		        { return FLOAT_LITERAL; }
-{D}+"."{E}?{FS}?			        { return FLOAT_LITERAL; }
-{HP}{H}+{P}{FS}?			        { return FLOAT_LITERAL; }
-{HP}{H}*"."{H}+{P}{FS}?		        { return FLOAT_LITERAL; }
-{HP}{H}+"."{P}{FS}?			        { return FLOAT_LITERAL; }
+{D}+{E}{FS}?				        { return CONST_FLOAT; }
+{D}*"."{D}+{E}?{FS}?		        { return CONST_FLOAT; }
+{D}+"."{E}?{FS}?			        { return CONST_FLOAT; }
+{HP}{H}+{P}{FS}?			        { return CONST_FLOAT; }
+{HP}{H}*"."{H}+{P}{FS}?		        { return CONST_FLOAT; }
+{HP}{H}+"."{P}{FS}?			        { return CONST_FLOAT; }
 
 ({SP}?\"([^"\\\n]|{ES})*\"{WS}*)+   { return STR_LITERAL; }
 
 "&&"                                { return LOGIC_AND; }
 "||"                                { return LOGIC_OR; }
-"!"                                 { return LOGIC_NOT; }
 
-"&"                                 { return BIT_AND; }
-"|"                                 { return BIT_OR; }
-"^"                                 { return BIT_XOR; }
-"~"                                 { return BIT_NOT; }
 "<<"                                { return LSHIFT; }
 ">>"                                { return RSHIFT; }
 
@@ -129,28 +124,32 @@ WS  [ \t\v\n\f]
 
 "->"                                { return ARROW; }
 
-"="                                 { return ASSIGN; }
-
-"+"                                 { return PLUS; }
-"-"                                 { return MINUS; }
-"*"                                 { return ASTERISK; }
-"/"                                 { return SLASH; }
-"%"                                 { return PERCENT; }
-
-"?"                                 { return QUESTION; }
-":"                                 { return COLON; }
-
-","                                 { return COMMA; }
-";"                                 { return SEMICOLON; }
-"."                                 { return DOT; }
 "..."                               { return ELLIPSIS; }
 
-"("                                 { return LPAREN; }
-")"                                 { return RPAREN; }
-"["|"<:"                            { return LBRACKET; }
-"]"|":>"                            { return RBRACKET; }
-"{"|"<%"                            { return LBRACE; }
-"}"|"%>"                            { return RBRACE; }
+";"					                { return ';'; }
+("{"|"<%")				            { return '{'; }
+("}"|"%>")				            { return '}'; }
+","					                { return ','; }
+":"					                { return ':'; }
+"="					                { return '='; }
+"("					                { return '('; }
+")"					                { return ')'; }
+("["|"<:")				            { return '['; }
+("]"|":>")				            { return ']'; }
+"."					                { return '.'; }
+"&"					                { return '&'; }
+"!"					                { return '!'; }
+"~"					                { return '~'; }
+"-"					                { return '-'; }
+"+"					                { return '+'; }
+"*"					                { return '*'; }
+"/"					                { return '/'; }
+"%"					                { return '%'; }
+"<"					                { return '<'; }
+">"					                { return '>'; }
+"^"					                { return '^'; }
+"|"					                { return '|'; }
+"?"					                { return '?'; }
 
 {L}{A}+                             { return check_type(); }
 
@@ -172,4 +171,15 @@ static void comment(void) {
         }
     }
     yyerror("unterminated comment");
+}
+
+static void check_type(void) {
+    switch (sym_type(yytext)) {
+        case TYPEDEF_NAME:
+            return TYPEDEF_NAME;
+        case ENUM_CONST:
+            return ENUM_CONST;
+        default:
+            return IDENTIFIER;
+    }
 }
