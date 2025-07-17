@@ -62,8 +62,8 @@ typedef enum {
     OR,               // ||
 
     // Assignment
-    PLUS_ASSIGN,      // +=
-    MINUS_ASSIGN,     // -=
+    ADD_ASSIGN,       // +=
+    SUB_ASSIGN,       // -=
     MUL_ASSIGN,       // *=
     DIV_ASSIGN,       // /=
     MOD_ASSIGN,       // %=

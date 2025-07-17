@@ -3,10 +3,9 @@
 #include "token_types.h"
 #include "symbol_table.h"
 #include "ast.h"
-}%
+%}
 
 %token DEFAULT IF ELSE SWITCH CASE WHILE DO FOR GOTO CONTINUE BREAK RETURN
-%token ALIGNAS ALIGNOF ATOMIC GENERIC NORETURN STATIC_ASSERT THREAD_LOCAL
 %token TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
 %token ENUM STRUCT UNION
 
@@ -15,7 +14,7 @@
 
 %token COMPLEX IMAGINARY
 
-%token PLUS_ASSIGN MINUS_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
+%token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %token AND_ASSIGN OR_ASSIGN XOR_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN
 %token INCREMENT DECREMENT
 %token AND OR
@@ -30,7 +29,62 @@
 
 %token CONST_INT CONST_FLOAT STR_LITERAL FUNC_NAME SIZEOF
 
+// Start declaration
 %start translation_unit
+
+%union {
+    char *sval;
+    int int_val;
+    expr *expr;
+    constant *constant;
+    string *string;
+    decl *decl;
+    ext_decl *ext_decl;
+    decl_list *decl_list;
+    func_def *func_def;
+    translation_unit *trans_unit;
+}
+
+// Terminals
+%type <sval> IDENTIFIER
+%type <sval> ENUM_CONST
+%type <sval> TYPEDEF_NAME
+%type <sval> CONST_INT
+%type <sval> CONST_FLOAT
+%type <sval> STR_LITERAL
+
+// Expressions
+%type <expr> expression
+%type <expr> primary_expression
+%type <expr> postfix_expression
+%type <expr> argument_expression_list
+%type <expr> unary_expression
+%type <expr> cast_expression
+%type <expr> multiplicative_expression
+%type <expr> additive_expression
+%type <expr> shift_expression
+%type <expr> relational_expression
+%type <expr> equality_expression
+%type <expr> and_expression
+%type <expr> exclusive_or_expression
+%type <expr> inclusive_or_expression
+%type <expr> logical_and_expression
+%type <expr> logical_or_expression
+%type <expr> conditional_expression
+%type <expr> assignment_expression
+%type <expr> constant_expression
+
+// Operators
+%type <int_val> unary_operator
+%type <int_val> assignment_operator
+
+%type <constant> constant
+%type <string> string
+%type <decl> declaration
+%type <ext_decl> external_declaration
+%type <decl_list> declaration_list
+%type <func_def> function_definition
+%type <trans_unit> translation_unit
 
 %%
 
@@ -39,37 +93,16 @@ primary_expression
 	| constant
 	| string
 	| '(' expression ')'
-	| generic_selection
 	;
 
 constant
-	: CONST_INT
-	| CONST_FLOAT
-	| ENUM_CONST
-	;
-
-enumeration_constant
-	: IDENTIFIER
-	;
+    : CONST_INT
+    | CONST_FLOAT
+    | ENUM_CONST
 
 string
-	: STR_LITERAL
-	| FUNC_NAME
-	;
-
-generic_selection
-	: GENERIC '(' assignment_expression ',' generic_assoc_list ')'
-	;
-
-generic_assoc_list
-	: generic_association
-	| generic_assoc_list ',' generic_association
-	;
-
-generic_association
-	: type_name ':' assignment_expression
-	| DEFAULT ':' assignment_expression
-	;
+    : STR_LITERAL
+    | FUNC_NAME
 
 postfix_expression
 	: primary_expression
@@ -96,7 +129,6 @@ unary_expression
 	| unary_operator cast_expression
 	| SIZEOF unary_expression
 	| SIZEOF '(' type_name ')'
-	| ALIGNOF '(' type_name ')'
 	;
 
 unary_operator
@@ -186,8 +218,8 @@ assignment_operator
 	| MUL_ASSIGN
 	| DIV_ASSIGN
 	| MOD_ASSIGN
-	| PLUS_ASSIGN
-	| MINUS_ASSIGN
+	| ADD_ASSIGN
+	| SUB_ASSIGN
 	| LSHIFT_ASSIGN
 	| RSHIFT_ASSIGN
 	| AND_ASSIGN
@@ -201,26 +233,23 @@ expression
 	;
 
 constant_expression
-	: conditional_expression	/* with constraints */
+	: conditional_expression
 	;
 
 declaration
 	: declaration_specifiers ';'
 	| declaration_specifiers init_declarator_list ';'
-	| static_assert_declaration
 	;
 
 declaration_specifiers
-	: storage_class_specifier declaration_specifiers
-	| storage_class_specifier
-	| type_specifier declaration_specifiers
+	: storage_class_specifier
+	| storage_class_specifier declaration_specifiers
 	| type_specifier
-	| type_qualifier declaration_specifiers
+	| type_specifier declaration_specifiers
 	| type_qualifier
-	| function_specifier declaration_specifiers
+	| type_qualifier declaration_specifiers
 	| function_specifier
-	| alignment_specifier declaration_specifiers
-	| alignment_specifier
+	| function_specifier declaration_specifiers
 	;
 
 init_declarator_list
@@ -229,15 +258,14 @@ init_declarator_list
 	;
 
 init_declarator
-	: declarator '=' initializer
-	| declarator
+	: declarator
+	| declarator '=' initializer
 	;
 
 storage_class_specifier
-	: TYPEDEF	/* identifiers must be flagged as TYPEDEF_NAME */
+	: TYPEDEF
 	| EXTERN
 	| STATIC
-	| THREAD_LOCAL
 	| AUTO
 	| REGISTER
 	;
@@ -254,16 +282,15 @@ type_specifier
 	| UNSIGNED
 	| BOOL
 	| COMPLEX
-	| IMAGINARY	  	/* non-mandated extension */
-	| atomic_type_specifier
+	| IMAGINARY
 	| struct_or_union_specifier
 	| enum_specifier
-	| TYPEDEF_NAME		/* after it has been defined as such */
+	| TYPEDEF_NAME
 	;
 
 struct_or_union_specifier
-	: struct_or_union '{' struct_declaration_list '}'
-	| struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+	: struct_or_union IDENTIFIER '{' struct_declaration_list '}'
+	| struct_or_union '{' struct_declaration_list '}'
 	| struct_or_union IDENTIFIER
 	;
 
@@ -278,9 +305,7 @@ struct_declaration_list
 	;
 
 struct_declaration
-	: specifier_qualifier_list ';'	/* for anonymous struct/union */
-	| specifier_qualifier_list struct_declarator_list ';'
-	| static_assert_declaration
+	: specifier_qualifier_list struct_declarator_list ';'
 	;
 
 specifier_qualifier_list
@@ -296,15 +321,15 @@ struct_declarator_list
 	;
 
 struct_declarator
-	: ':' constant_expression
+	: declarator
+	| ':' constant_expression
 	| declarator ':' constant_expression
-	| declarator
 	;
 
 enum_specifier
 	: ENUM '{' enumerator_list '}'
-	| ENUM '{' enumerator_list ',' '}'
 	| ENUM IDENTIFIER '{' enumerator_list '}'
+	| ENUM '{' enumerator_list ',' '}'
 	| ENUM IDENTIFIER '{' enumerator_list ',' '}'
 	| ENUM IDENTIFIER
 	;
@@ -315,29 +340,21 @@ enumerator_list
 	;
 
 enumerator
-	: enumeration_constant '=' constant_expression
-	| enumeration_constant
+	: enumeration_constant
+	| enumeration_constant '=' constant_expression
 	;
 
-atomic_type_specifier
-	: ATOMIC '(' type_name ')'
-	;
+enumeration_constant
+    : IDENTIFIER /* With constraints */
 
 type_qualifier
 	: CONST
 	| RESTRICT
 	| VOLATILE
-	| ATOMIC
 	;
 
 function_specifier
 	: INLINE
-	| NORETURN
-	;
-
-alignment_specifier
-	: ALIGNAS '(' type_name ')'
-	| ALIGNAS '(' constant_expression ')'
 	;
 
 declarator
@@ -345,28 +362,28 @@ declarator
 	| direct_declarator
 	;
 
+
 direct_declarator
 	: IDENTIFIER
 	| '(' declarator ')'
-	| direct_declarator '[' ']'
-	| direct_declarator '[' '*' ']'
-	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
-	| direct_declarator '[' STATIC assignment_expression ']'
-	| direct_declarator '[' type_qualifier_list '*' ']'
-	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'
 	| direct_declarator '[' type_qualifier_list ']'
 	| direct_declarator '[' assignment_expression ']'
+	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'
+	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'
+	| direct_declarator '[' type_qualifier_list '*' ']'
+	| direct_declarator '[' '*' ']'
+	| direct_declarator '[' ']'
 	| direct_declarator '(' parameter_type_list ')'
-	| direct_declarator '(' ')'
 	| direct_declarator '(' identifier_list ')'
+	| direct_declarator '(' ')'
 	;
 
 pointer
-	: '*' type_qualifier_list pointer
+	: '*'
 	| '*' type_qualifier_list
 	| '*' pointer
-	| '*'
+	| '*' type_qualifier_list pointer
 	;
 
 type_qualifier_list
@@ -376,8 +393,8 @@ type_qualifier_list
 
 
 parameter_type_list
-	: parameter_list ',' ELLIPSIS
-	| parameter_list
+	: parameter_list
+	| parameter_list ',' ELLIPSIS
 	;
 
 parameter_list
@@ -397,34 +414,24 @@ identifier_list
 	;
 
 type_name
-	: specifier_qualifier_list abstract_declarator
-	| specifier_qualifier_list
+	: specifier_qualifier_list
+	| specifier_qualifier_list abstract_declarator
 	;
 
 abstract_declarator
-	: pointer direct_abstract_declarator
-	| pointer
+	: pointer
 	| direct_abstract_declarator
+	| pointer direct_abstract_declarator
 	;
 
 direct_abstract_declarator
 	: '(' abstract_declarator ')'
 	| '[' ']'
-	| '[' '*' ']'
-	| '[' STATIC type_qualifier_list assignment_expression ']'
-	| '[' STATIC assignment_expression ']'
-	| '[' type_qualifier_list STATIC assignment_expression ']'
-	| '[' type_qualifier_list assignment_expression ']'
-	| '[' type_qualifier_list ']'
 	| '[' assignment_expression ']'
 	| direct_abstract_declarator '[' ']'
-	| direct_abstract_declarator '[' '*' ']'
-	| direct_abstract_declarator '[' STATIC type_qualifier_list assignment_expression ']'
-	| direct_abstract_declarator '[' STATIC assignment_expression ']'
-	| direct_abstract_declarator '[' type_qualifier_list assignment_expression ']'
-	| direct_abstract_declarator '[' type_qualifier_list STATIC assignment_expression ']'
-	| direct_abstract_declarator '[' type_qualifier_list ']'
 	| direct_abstract_declarator '[' assignment_expression ']'
+	| '[' '*' ']'
+	| direct_abstract_declarator '[' '*' ']'
 	| '(' ')'
 	| '(' parameter_type_list ')'
 	| direct_abstract_declarator '(' ')'
@@ -432,16 +439,16 @@ direct_abstract_declarator
 	;
 
 initializer
-	: '{' initializer_list '}'
+	: assignment_expression
+	| '{' initializer_list '}'
 	| '{' initializer_list ',' '}'
-	| assignment_expression
 	;
 
 initializer_list
-	: designation initializer
-	| initializer
-	| initializer_list ',' designation initializer
+	: initializer
+	| designation initializer
 	| initializer_list ',' initializer
+	| initializer_list ',' designation initializer
 	;
 
 designation
@@ -456,10 +463,6 @@ designator_list
 designator
 	: '[' constant_expression ']'
 	| '.' IDENTIFIER
-	;
-
-static_assert_declaration
-	: STATIC_ASSERT '(' constant_expression ',' STR_LITERAL ')' ';'
 	;
 
 statement
@@ -479,7 +482,7 @@ labeled_statement
 
 compound_statement
 	: '{' '}'
-	| '{'  block_item_list '}'
+	| '{' block_item_list '}'
 	;
 
 block_item_list
@@ -498,8 +501,8 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement ELSE statement
-	| IF '(' expression ')' statement
+	: IF '(' expression ')' statement
+	| IF '(' expression ')' statement ELSE statement
 	| SWITCH '(' expression ')' statement
 	;
 
@@ -540,4 +543,10 @@ declaration_list
 	| declaration_list declaration
 	;
 
+
 %%
+
+void yyerror(char const *s) {
+	fflush(stdout);
+	fprintf(stderr, "*** %s\n", s);
+}
