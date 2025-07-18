@@ -14,7 +14,3 @@ int main() {
 
     
 }
-
-struct {
-    int : 9;
-} a;

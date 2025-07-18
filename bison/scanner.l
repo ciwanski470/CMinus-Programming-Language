@@ -61,22 +61,22 @@ WS          [ \t\v\n\f]
 "_Imaginary"		        { return IMAGINARY; }
 "__func__"                  { return FUNC_NAME; }
 
-{L}({L}|{D})*		        { return check_type(); }
+{L}({L}|{D})*		        { yylval.sval = yytext; return check_type(); }
 
-0[xX]{H}+{IS}?		        { return CONST_INT; }
-0[0-7]*{IS}?		        { return CONST_INT; }
-[1-9]{D}*{IS}?		        { return CONST_INT; }
-L?'(\\.|[^\\'\n])+'	        { return CONST_INT; }
+0[xX]{H}+{IS}?		        { yylval.sval = yytext; return CONST_INT; }
+0[0-7]*{IS}?		        { yylval.sval = yytext; return CONST_INT; }
+[1-9]{D}*{IS}?		        { yylval.sval = yytext; return CONST_INT; }
+L?'(\\.|[^\\'\n])+'	        { yylval.sval = yytext; return CONST_INT; }
 
-{D}+{E}{FS}?		        { return CONST_FLOAT; }
-{D}*"."{D}+{E}?{FS}?	    { return CONST_FLOAT; }
-{D}+"."{D}*{E}?{FS}?	    { return CONST_FLOAT; }
-0[xX]{H}+{P}{FS}?	        { return CONST_FLOAT; }
-0[xX]{H}*"."{H}+{P}{FS}?    { return CONST_FLOAT; }
-0[xX]{H}+"."{H}*{P}{FS}?    { return CONST_FLOAT; }
+{D}+{E}{FS}?		        { yylval.sval = yytext; return CONST_FLOAT; }
+{D}*"."{D}+{E}?{FS}?	    { yylval.sval = yytext; return CONST_FLOAT; }
+{D}+"."{D}*{E}?{FS}?	    { yylval.sval = yytext; return CONST_FLOAT; }
+0[xX]{H}+{P}{FS}?	        { yylval.sval = yytext; return CONST_FLOAT; }
+0[xX]{H}*"."{H}+{P}{FS}?    { yylval.sval = yytext; return CONST_FLOAT; }
+0[xX]{H}+"."{H}*{P}{FS}?    { yylval.sval = yytext; return CONST_FLOAT; }
 
 
-L?\"(\\.|[^\\"\n])*\"	    { return STR_LITERAL; }
+L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = yytext; return STR_LITERAL; }
 
 "..."			            { return ELLIPSIS; }
 ">>="			            { return RSHIFT_ASSIGN; }
@@ -150,13 +150,12 @@ static void comment() {
 }
 
 static int check_type() {
-    switch (sym_type(yytext))
-    {
-    case TYPEDEF_NAME:                /* previously defined */
-        return TYPEDEF_NAME;
-    case ENUM_CONST:        /* previously defined */
-        return ENUM_CONST;
-    default:                          /* includes undefined */
-        return IDENTIFIER;
+    switch (sym_type(yytext)) {
+        case SYM_TYPEDEF:
+            return TYPEDEF_NAME;
+        case SYM_ENUM_CONST:
+            return ENUM_CONST;
+        default:
+            return IDENTIFIER;
     }
 }

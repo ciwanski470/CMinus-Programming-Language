@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include "token_types.h"
 #include "symbol_table.h"
+#include "parser_context.h"
 #include "ast.h"
 %}
 
@@ -37,7 +38,6 @@
     int int_val;
     expr *expr;
     constant *constant;
-    string *string;
     decl *decl;
     ext_decl *ext_decl;
     decl_list *decl_list;
@@ -79,7 +79,7 @@
 %type <int_val> assignment_operator
 
 %type <constant> constant
-%type <string> string
+%type <sval> string
 %type <decl> declaration
 %type <ext_decl> external_declaration
 %type <decl_list> declaration_list
@@ -89,151 +89,151 @@
 %%
 
 primary_expression
-	: IDENTIFIER
-	| constant
-	| string
-	| '(' expression ')'
+	: IDENTIFIER            { $$ = make_id_expr(yylval.sval); }
+	| constant              { $$ = make_const_expr($1); }
+	| string                { $$ = make_str_expr($1); }
+	| '(' expression ')'    { $$ = $1; }
 	;
 
 constant
-    : CONST_INT
-    | CONST_FLOAT
-    | ENUM_CONST
+    : CONST_INT     { $$ = make_constant(CONSTANT_INT, yylval.sval); }
+    | CONST_FLOAT   { $$ = make_constant(CONSTANT_FLOAT, yylval.sval); }
+    | ENUM_CONST    { $$ = make_constant(CONSTANT_ENUM, yylval.sval); }
 
 string
-    : STR_LITERAL
-    | FUNC_NAME
+    : STR_LITERAL   { $$ = yylval.sval; }
+    | FUNC_NAME     { $$ = func_name(); }
 
 postfix_expression
-	: primary_expression
-	| postfix_expression '[' expression ']'
-	| postfix_expression '(' ')'
-	| postfix_expression '(' argument_expression_list ')'
-	| postfix_expression '.' IDENTIFIER
-	| postfix_expression ARROW IDENTIFIER
-	| postfix_expression INCREMENT
-	| postfix_expression DECREMENT
-	| '(' type_name ')' '{' initializer_list '}'
-	| '(' type_name ')' '{' initializer_list ',' '}'
+	: primary_expression                                    { $$ = $1; }
+	| postfix_expression '[' expression ']'                 { $$ = make_expr(EXPR_SUBSCRIPT, $1, $3); }
+	| postfix_expression '(' ')'                            { $$ = make_expr(EXPR_CALL, $1, 0); }
+	| postfix_expression '(' argument_expression_list ')'   { $$ = make_expr(EXPR_CALL, $1, $3); }
+	| postfix_expression '.' IDENTIFIER                     { $$ = make_member_access_expr(EXPR_MEMBER_DOT, $1, yylval.sval); }
+	| postfix_expression ARROW IDENTIFIER                   { $$ = make_member_access_expr(EXPR_MEMBER_ARROW, $1, yylval.sval); }
+	| postfix_expression INCREMENT                          { $$ = make_expr(EXPR_POST_INCR, $1, 0); }
+	| postfix_expression DECREMENT                          { $$ = make_expr(EXPR_POST_DECR, $1, 0); }
+	| '(' type_name ')' '{' initializer_list '}'            { $$ = make_init_expr($2, $5); }
+	| '(' type_name ')' '{' initializer_list ',' '}'        { $$ = make_init_expr($2, $5); }
 	;
 
 argument_expression_list
-	: assignment_expression
-	| argument_expression_list ',' assignment_expression
+	: assignment_expression                                 { $$ = $1; }
+	| argument_expression_list ',' assignment_expression    { $$ = make_expr($1, $3); }
 	;
 
 unary_expression
-	: postfix_expression
-	| INCREMENT unary_expression
-	| DECREMENT unary_expression
-	| unary_operator cast_expression
-	| SIZEOF unary_expression
-	| SIZEOF '(' type_name ')'
+	: postfix_expression                { $$ = $1; }
+	| INCREMENT unary_expression        { $$ = make_expr(EXPR_PRE_INCR, $2, 0); }
+	| DECREMENT unary_expression        { $$ = make_expr(EXPR_PRE_DECR, $2, 0); }
+	| unary_operator cast_expression    { $$ = make_expr($1, $2, 0); }
+	| SIZEOF unary_expression           { $$ = make_expr(EXPR_SIZEOF, $2, 0); }
+	| SIZEOF '(' type_name ')'          { $$ = make_sizeof_expr($3); }
 	;
 
 unary_operator
-	: '&'
-	| '*'
-	| '+'
-	| '-'
-	| '~'
-	| '!'
+	: '&'   { $$ = EXPR_ADDREF; }
+	| '*'   { $$ = EXPR_DEREF; }
+	| '+'   { $$ = EXPR_PLUS; }
+	| '-'   { $$ = EXPR_MINUS; }
+	| '~'   { $$ = EXPR_BITNOT; }
+	| '!'   { $$ = EXPR_LOGNOT; }
 	;
 
 cast_expression
-	: unary_expression
-	| '(' type_name ')' cast_expression
+	: unary_expression                  { $$ = $1; }
+	| '(' type_name ')' cast_expression { $$ = make_cast_expr($2, $4); }
 	;
 
 multiplicative_expression
-	: cast_expression
-	| multiplicative_expression '*' cast_expression
-	| multiplicative_expression '/' cast_expression
-	| multiplicative_expression '%' cast_expression
+	: cast_expression                               { $$ = $1; }
+	| multiplicative_expression '*' cast_expression { $$ = make_expr(EXPR_MUL, $1, $3); }
+	| multiplicative_expression '/' cast_expression { $$ = make_expr(EXPR_DIV, $1, $3); }
+	| multiplicative_expression '%' cast_expression { $$ = make_expr(EXPR_MOD, $1, $3); }
 	;
 
 additive_expression
-	: multiplicative_expression
-	| additive_expression '+' multiplicative_expression
-	| additive_expression '-' multiplicative_expression
+	: multiplicative_expression                         { $$ = $1; }
+	| additive_expression '+' multiplicative_expression { $$ = make_expr(EXPR_ADD, $1, $3); }
+	| additive_expression '-' multiplicative_expression { $$ = make_expr(EXPR_SUB, $1, $3); }
 	;
 
 shift_expression
-	: additive_expression
-	| shift_expression LSHIFT additive_expression
-	| shift_expression RSHIFT additive_expression
+	: additive_expression                           { $$ = $1; }
+	| shift_expression LSHIFT additive_expression   { $$ = make_expr(EXPR_LSHIFT, $1, $3); }
+	| shift_expression RSHIFT additive_expression   { $$ = make_expr(EXPR_RSHIFT, $1, $3); }
 	;
 
 relational_expression
-	: shift_expression
-	| relational_expression '<' shift_expression
-	| relational_expression '>' shift_expression
-	| relational_expression LEQ shift_expression
-	| relational_expression GEQ shift_expression
+	: shift_expression                              { $$ = $1; }
+	| relational_expression '<' shift_expression    { $$ = make_expr(EXPR_LT, $1, $3); }
+	| relational_expression '>' shift_expression    { $$ = make_expr(EXPR_GT, $1, $3); }
+	| relational_expression LEQ shift_expression    { $$ = make_expr(EXPR_LEQ, $1, $3); }
+	| relational_expression GEQ shift_expression    { $$ = make_expr(EXPR_GEQ, $1, $3); }
 	;
 
 equality_expression
-	: relational_expression
-	| equality_expression EQUAL relational_expression
-	| equality_expression NOT_EQUAL relational_expression
+	: relational_expression                                 { $$ = $1; }
+	| equality_expression EQUAL relational_expression       { $$ = make_expr(EXPR_EQ, $1, $3); }
+	| equality_expression NOT_EQUAL relational_expression   { $$ = make_expr(EXPR_NEQ, $1, $3); }
 	;
 
 and_expression
-	: equality_expression
-	| and_expression '&' equality_expression
+	: equality_expression                       { $$ = $1; }
+	| and_expression '&' equality_expression    { $$ = make_expr(EXPR_BITAND, $1, $3); }
 	;
 
 exclusive_or_expression
-	: and_expression
-	| exclusive_or_expression '^' and_expression
+	: and_expression                                { $$ = $1; }
+	| exclusive_or_expression '^' and_expression    { $$ = make_expr(EXPR_BITXOR, $1, $3); }
 	;
 
 inclusive_or_expression
-	: exclusive_or_expression
-	| inclusive_or_expression '|' exclusive_or_expression
+	: exclusive_or_expression                               { $$ = $1; }
+	| inclusive_or_expression '|' exclusive_or_expression   { $$ = make_expr(EXPR_BITOR, $1, $3); }
 	;
 
 logical_and_expression
-	: inclusive_or_expression
-	| logical_and_expression AND inclusive_or_expression
+	: inclusive_or_expression                               { $$ = $1; }
+	| logical_and_expression AND inclusive_or_expression    { $$ = make_expr(EXPR_LOGAND, $1, $3); }
 	;
 
 logical_or_expression
-	: logical_and_expression
-	| logical_or_expression OR logical_and_expression
+	: logical_and_expression                            { $$ = $1; }
+	| logical_or_expression OR logical_and_expression   { $$ = make_expr(EXPR_LOGOR, $1, $3); }
 	;
 
 conditional_expression
-	: logical_or_expression
-	| logical_or_expression '?' expression ':' conditional_expression
+	: logical_or_expression                                             { $$ = $1; }
+	| logical_or_expression '?' expression ':' conditional_expression   { $$ = make_ternary_expr($1, $3, $5); }
 	;
 
 assignment_expression
-	: conditional_expression
-	| unary_expression assignment_operator assignment_expression
+	: conditional_expression                                        { $$ = $1; }
+	| unary_expression assignment_operator assignment_expression    { $$ = make_expr($2, $1, $3); }
 	;
 
 assignment_operator
-	: '='
-	| MUL_ASSIGN
-	| DIV_ASSIGN
-	| MOD_ASSIGN
-	| ADD_ASSIGN
-	| SUB_ASSIGN
-	| LSHIFT_ASSIGN
-	| RSHIFT_ASSIGN
-	| AND_ASSIGN
-	| XOR_ASSIGN
-	| OR_ASSIGN
+	: '='           { $$ = EXPR_ASSIGN; }
+	| MUL_ASSIGN    { $$ = EXPR_MUL_ASSIGN; }
+	| DIV_ASSIGN    { $$ = EXPR_DIV_ASSIGN; }
+	| MOD_ASSIGN    { $$ = EXPR_MOD_ASSIGN; }
+	| ADD_ASSIGN    { $$ = EXPR_ADD_ASSIGN; }
+	| SUB_ASSIGN    { $$ = EXPR_SUB_ASSIGN; }
+	| LSHIFT_ASSIGN { $$ = EXPR_LSHIFT_ASSIGN; }
+	| RSHIFT_ASSIGN { $$ = EXPR_RSHIFT_ASSIGN; }
+	| AND_ASSIGN    { $$ = EXPR_AND_ASSIGN; }
+	| XOR_ASSIGN    { $$ = EXPR_XOR_ASSIGN; }
+	| OR_ASSIGN     { $$ = EXPR_OR_ASSIGN; }
 	;
 
 expression
-	: assignment_expression
-	| expression ',' assignment_expression
+	: assignment_expression                 { $$ = $1; }
+	| expression ',' assignment_expression  { $$ = make_expr(EXPR_COMMA, $1, $3); }
 	;
 
 constant_expression
-	: conditional_expression
+	: conditional_expression                { $$ = $1; }
 	;
 
 declaration
@@ -340,12 +340,12 @@ enumerator_list
 	;
 
 enumerator
-	: enumeration_constant
+	: enumeration_constant                          
 	| enumeration_constant '=' constant_expression
 	;
 
 enumeration_constant
-    : IDENTIFIER /* With constraints */
+    : IDENTIFIER    { sym_define_enum(yylval.sval); }
 
 type_qualifier
 	: CONST
@@ -482,7 +482,9 @@ labeled_statement
 
 compound_statement
 	: '{' '}'
-	| '{' block_item_list '}'
+	| '{'               { sym_push_scope() }
+       block_item_list
+       '}'              { sym_pop_scope() }
 	;
 
 block_item_list
@@ -546,7 +548,8 @@ declaration_list
 
 %%
 
-void yyerror(char const *s) {
+void yyerror(const char *s)
+{
 	fflush(stdout);
 	fprintf(stderr, "*** %s\n", s);
 }

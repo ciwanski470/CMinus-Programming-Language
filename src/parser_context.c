@@ -1,10 +1,21 @@
 /*
-    Implementation of "symbol_table.h"
+    Implementation of "parser_context.h"
 */
 
-#include "symbol_table.h"
-#include "token_types.h"
+char *curr_func;
 
-int sym_type(const char *token) {
-    return IDENTIFIER; // Fake it for now
+void set_func_name(char *name) {
+    curr_func = name;
+}
+
+void func_ended() {
+    curr_func = 0;
+}
+
+char *func_name() {
+    if (curr_func == 0) {
+        printf("Error: __func_name__ used outside of function definition\n");
+        return "";
+    }
+    return curr_func;
 }
