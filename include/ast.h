@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 /*
     --------- Enums ---------
 */
@@ -17,9 +19,9 @@ typedef enum {
 // Expression enum
 typedef enum {
     /* primary expressions */
-    EXPR_IDENTIFIER,        // identifier
-    EXPR_CONSTANT,          // integer, floating, enumeration constant
-    EXPR_STRING_LITERAL,    // string literal
+    EXPR_ID,                // identifier
+    EXPR_CONST,             // integer, floating, enumeration constant
+    EXPR_STR_LITERAL,       // string literal
     EXPR_PAREN,             // parenthesized sub‑expression
 
     /* postfix expressions */
@@ -101,12 +103,9 @@ typedef enum {
 } expr_kind;
 
 typedef enum {
-    DD_ID,
-    DD_NESTED,
-    DD_ARRAY,
-    DD_FUNC_PROTO,
-    DD_FUNC_KR
-} decltr_core_kind;
+    DECL_NORMAL,
+    DECL_PARAM
+} decl_kind;
 
 typedef enum {
     SOU_STRUCT,
@@ -126,19 +125,23 @@ typedef enum {
     TS_BOOL,
     TS_COMPLEX,
     TS_IMAGINARY,
-    TS_SU_SPEC,
-    TS_ENUM_SPEC,
+    TS_SOU,
+    TS_ENUM,
     TS_TYPEDEF
 } type_spec_kind;
 
 typedef enum {
-    DCTR_NORMAL,
-    DCTR_BIT_FIELD
+    DCTR_EMPTY,
+    DCTR_ID,
+    DCTR_NESTED,
+    DCTR_ARRAY,
+    DCTR_FUNC_PROTO,
+    DCTR_FUNC_KR
 } decltr_kind;
 
 typedef enum {
-    DSG_CONST,
-    DSG_ID
+    DSG_INDEX,
+    DSG_MEMBER
 } designator_kind;
 
 typedef enum {
@@ -202,8 +205,7 @@ typedef enum {
 typedef enum {
     TQ_CONST,
     TQ_RESTRICT,
-    TQ_VOLATILE,
-    TQ_ATOMIC
+    TQ_VOLATILE
 } type_qual;
 
 typedef enum {
@@ -224,239 +226,303 @@ typedef enum {
     --------- Structures ---------
 */
 
+struct constant;
+struct expr;
+struct type_name;
+struct struct_decltr_list;
+struct struct_decl_list;
+struct sou_spec;
+struct enumerator_list;
+struct enum_spec;
+struct type_spec;
+struct type_spec_list;
+struct type_qual_list;
+struct func_spec_list;
+struct decl_specs;
+struct pointer;
+struct id_list;
+struct param_list;
+struct decltr;
+struct designator;
+struct init_list;
+struct initializer;
+struct init_decltr;
+struct decl;
+struct decl_list;
+struct block_list;
+struct stmt;
+struct func_def;
+struct ext_decl;
+struct translation_unit;
+struct decl_spec_list;
+
 // int, float, enum
-typedef struct {
+typedef struct constant {
     const_kind kind;
     char *value;
 } constant;
 
 
-typedef struct {
+typedef struct expr {
     expr_kind kind;
 
     // Both are used in binary expressions, and only left for unary
-    expr *left;
-    expr *right;
+    struct expr *left;
+    struct expr *right;
 
     // Leaves or additional data
     union {
-        char *identifier;       // EXPR_IDENTIFIER (leaf)
-        constant *const_val;    // EXPR_CONSTANT (leaf)
-        char *string_val;       // EXPR_STRING (leaf)
-        expr *conditional;      // EXPR_CONDITIONAL (ternary)
-        type_name *type;        // EXPR_CAST and EXPR_SIZEOF
-        init_list *init;        // EXPR_INIT_LIST
+        char *id;                   // EXPR_IDENTIFIER (leaf)
+        struct constant *const_val; // EXPR_CONSTANT (leaf)
+        char *str_val;              // EXPR_STR_LITERAL (leaf)
+        struct expr *conditional;   // EXPR_CONDITIONAL (ternary)
+        struct {
+            type_name *type;        // EXPR_CAST, EXPR_SIZEOF, and EXPR_INIT_LIST
+            init_list *init;        // EXPR_INIT_LIST
+        };
     } extra;
 } expr;
 
 
-typedef struct {
-    decl_specs *specs; // Type specifiers and qualifiers
-    decltr *suffix;
+typedef struct type_name {
+    struct decl_specs *specs; // Type specifiers and qualifiers
+    struct decltr *suffix;
 } type_name;
 
 
-typedef struct {
+// Initially in reverse order during parsing
+typedef struct struct_decltr_list {
+    struct decltr *decltr;
+    struct expr *bits;
+
+    struct struct_decltr_list *next;
+} struct_decltr_list;
+
+
+// Initially in reverse order during parsing
+typedef struct struct_decl_list {
+    struct decl_specs *specs;
+    struct struct_decltr_list *decltrs;
+
+    struct struct_decl_list *next;
+} struct_decl_list;
+
+
+typedef struct sou_spec {
     sou_kind kind;
     char *name;
-    decl_list *decls;
-} sou_decl;
+    struct struct_decl_list *decls;
+} sou_spec;
 
 
-typedef struct {
-    enumerator_list *prev;
-    char *enum_const;
-    expr *const_val;
+// Initially in reverse order during parsing
+typedef struct enumerator_list {
+    char *name;
+    struct expr *const_val;
+    struct enumerator_list *next;
 } enumerator_list;
 
 
-typedef struct {
+typedef struct enum_spec {
     char *name;
-    enumerator_list *enums;
-} enum_decl;
+    struct enumerator_list *enum_list;
+} enum_spec;
 
 
-typedef struct {
+typedef struct type_spec {
     type_spec_kind kind;
     union {
-        sou_decl *sou;      // TS_SOU
-        enum_decl *enums;   // TS_ENUM
-        char *type_name;    // TS_TYPEDEF
+        struct sou_spec *sou;       // TS_SOU
+        struct enum_spec *enums;    // TS_ENUM
+        char *type_name;            // TS_TYPEDEF
     };
 } type_spec;
 
 
-typedef struct {
-    type_spec *type;
-    type_spec_list *next;
+typedef struct type_spec_list {
+    struct type_spec *type;
+    struct type_spec_list *next;
 } type_spec_list;
 
 
-typedef struct {
+typedef struct type_qual_list {
     type_qual qual;
-    type_qual_list *next;
+    struct type_qual_list *next;
 } type_qual_list;
 
 
 // There is only one kind of func_spec, but I'm still making a list for scalability
-typedef struct {
+typedef struct func_spec_list {
     func_spec spec;
-    func_spec_list *next;
+    struct func_spec_list *next;
 } func_spec_list;
 
 
-typedef struct {
+typedef struct decl_specs {
     storage_class storage;
-    type_spec_list *type_specs;
-    type_qual_list *type_quals;
-    func_spec_list *func_specs;
+    struct type_spec_list *type_specs;
+    struct type_qual_list *type_quals;
+    struct func_spec_list *func_specs;
 } decl_specs;
 
 
-typedef struct {
-    type_qual_list *type_quals;
-    pointer *next;
+typedef struct pointer {
+    struct type_qual_list *type_quals;
+    struct pointer *next;
 } pointer;
 
 
-typedef struct {
+// Initially in reverse order during parsing
+typedef struct id_list {
     char *id;
-    id_list *prev;
+    struct id_list *next;
 } id_list;
 
 
-typedef struct {
-    decl *param_decl;
-    param_list *prev;
+// Initially in reverse order during parsing
+typedef struct param_list {
+    struct decl *param_decl;
+    struct param_list *next;
 } param_list;
 
 
-typedef struct {
-    pointer *ptr;
-    decltr_core_kind kind;
+typedef struct decltr {
+    decltr_kind kind;
+    struct pointer *ptr;
     union {
         char *id;
 
-        decltr *nested;
+        struct decltr *nested;
 
         struct {
             bool is_static;
             bool has_asterisk;
-            type_qual_list *quals;
-            expr *size;
+            struct type_qual_list *quals;
+            struct expr *size;
         } array;
 
         struct {
-            param_list *params;
+            struct param_list *params;
             bool has_ellipsis;
         } func;
 
-        id_list *kr_ids; // Old K&R style; might remove later
+        struct id_list *kr_ids; // Old K&R style; might remove later
     };
 
-    decltr *prev;
+    struct decltr *prev;
 } decltr;
 
 
-typedef struct {
+// Initially in reverse order during parsing
+typedef struct designator {
     designator_kind kind;
     union {
-        expr *index;
+        struct expr *index;
         char *member;
     };
 
-    designator *prev;
+    struct designator *next;
 } designator;
 
 
-typedef struct {
-    initializer *init;
-    designator *designation;
+// Initially in reverse order during parsing
+typedef struct init_list {
+    struct initializer *init;
+    struct designator *designation;
 
-    init_list *prev;
+    struct init_list *next;
 } init_list;
 
 
-typedef struct {
+typedef struct initializer {
     initializer_kind kind;
     union {
-        expr *assignment;
-        init_list *list;
+        struct expr *assignment;
+        struct init_list *list;
     };
 } initializer;
 
 
-typedef struct {
-    decltr *a;
-    initializer *init;
+// Initially in reverse order during parsing
+typedef struct init_decltr {
+    struct decltr *decltr;
+    struct initializer *init;
 
-    init_decltr *prev;
+    struct init_decltr *next;
 } init_decltr;
 
 
-typedef struct {
-    decl_specs *specs;
-    init_decltr *decltrs;
+typedef struct decl {
+    decl_kind kind;
+    struct decl_specs *specs;
+    union {
+        struct init_decltr *init_decltrs;
+        struct decltr *param_decltr;
+        bool decltr_abstract;
+    };
 } decl;
 
 
-typedef struct {
-    decl *curr;
-    decl_list *next;
+// Initially in reverse order during parsing
+typedef struct decl_list {
+    struct decl *curr;
+    struct decl_list *next;
 } decl_list;
 
 
-typedef struct {
+// Initially in reverse order during parsing
+typedef struct block_list {
     block_item_kind kind;
     union {
-        decl *decl;
-        stmt *stmt;
-    } info;
-    block_list *prev;
+        struct decl *decl;
+        struct stmt *stmt;
+    };
+    struct block_list *next;
 } block_list;
 
 
-typedef struct {
+// Important to note that while loops are being used as conditional statements
+typedef struct stmt {
     stmt_kind kind;
 
     union {
-        expr *expr_stmt; // STMT_EXPR
+        struct expr *expr_stmt; // STMT_EXPR
 
         struct {
-            block_list *items;
+            struct block_list *items;
         } compound_stmt;
 
         // STMT_IF, STMT_SWITCH, STMT_WHILE, STMT_DO
         struct {
-            expr *cond;         // Thing to be compared in a switch statement
-            stmt *body;
-            stmt *else_body;    // If there is an else block
+            struct expr *cond;         // Thing to be compared in a switch statement
+            struct stmt *body;
+            struct stmt *else_body;    // If there is an else block
         } conditional_stmt;
 
         struct {
             // Note that the init can either be a declaration or assignment expression
             for_init_kind kind;
             union {
-                decl *decl;
-                expr *expr;
+                struct decl *decl;
+                struct expr *expr;
             } init;
-            expr *cond;
-            expr *update_expr;
-            stmt *body;
+            struct expr *cond;
+            struct expr *update;
+            struct stmt *body;
         } for_stmt;
 
         struct {
             char *label;
-            stmt *stmt;
+            struct stmt *next;
         } label_stmt;
 
         struct {
-            expr *case_expr;
-            stmt *result;
+            struct expr *case_expr;
+            struct stmt *result;
         } case_stmt;
 
         struct {
-            stmt *result;
+            struct stmt *result;
         } default_stmt;
 
         struct {
@@ -464,49 +530,50 @@ typedef struct {
         } goto_stmt;
 
         struct {
-            expr *result;
+            struct expr *result;
         } return_stmt;
     };
 } stmt;
 
 
-typedef struct {
+typedef struct func_def {
     func_def_kind kind;
-    decl_specs *specs;
-    decltr *decltr;
-    decl_list *decls;
-    stmt *body;
+    struct decl_specs *specs;
+    struct decltr *decltr;
+    struct decl_list *decls;
+    struct stmt *body;
 } func_def;
 
 
-typedef struct {
+typedef struct ext_decl {
     ext_decl_kind kind;
     union {
-        func_def *func;
-        decl *decl;
+        struct func_def *func;
+        struct decl *decl;
     };
 } ext_decl;
 
 
-typedef struct {
-    ext_decl *action;
-    translation_unit *prev;
+// Initially in reverse order during parsing
+typedef struct translation_unit {
+    struct ext_decl *action;
+    struct translation_unit *next;
 } translation_unit;
 
 
 // Helper struct that gets converted into a decl_specs when parsing
 // Represents the "declaration_specifiers" non-terminal
 // Not used in the AST
-typedef struct {
+typedef struct decl_spec_list {
     decl_spec_kind kind;
     union {
         storage_class storage;
-        type_spec *type_spec;
+        struct type_spec *type_spec;
         type_qual type_qual;
         func_spec func_spec;
     };
 
-    decl_spec_list *next;
+    struct decl_spec_list *next;
 } decl_spec_list;
 
 
@@ -516,9 +583,6 @@ typedef struct {
 
 // Constant
 static inline constant *make_constant(const_kind kind, char *value);
-
-// Translation unit
-//static inline translation_unit *make_trans_unit(translation_unit *next, ext_decl *curr);
 
 // Expressions
 static inline expr *make_expr(expr_kind kind, expr *left, expr *right);
@@ -534,17 +598,40 @@ static inline expr *make_ternary_expr(expr *conditional, expr *first, expr *seco
 // Declarations
 static inline decl_specs *make_decl_specs(decl_spec_list *specs);
 
-static inline decl *make_decl(decl_specs *specs, init_decltr *init);
+static inline decl *make_normal_decl(decl_specs *specs, init_decltr *init);
+static inline decl *make_param_decl(decl_specs *specs, decltr *param_decltr, bool decltr_abstract);
+
+static inline decl_list *make_decl_list(decl_list *prev, decl *curr);
+
+static inline sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_list *decls);
+
+static inline struct_decl_list *make_struct_decl_list(decl_specs *specs, struct_decltr_list *decltrs);
+static inline void add_struct_decl(struct_decl_list *prev, struct_decl_list *curr);
+
+static inline struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *bits);
+static inline void add_struct_decltr(struct_decltr_list *prev, struct_decltr_list *curr);
 
 static inline init_decltr *make_init_decltr(decltr *decltr, initializer *init);
 static inline void add_init_decltr(init_decltr *prev, init_decltr *curr);
 
+static inline enum_spec *make_enum_spec(char *name, enumerator_list *enums);
+
+static inline enumerator_list *make_enum_list(char *name, expr *val);
+static inline void add_enumerator(enumerator_list *prev, enumerator_list *curr);
+
+static inline pointer *make_pointer(type_qual_list *quals, pointer *next);
+
+static inline decltr *make_empty_decltr(bool has_pointer); // For abstract
 static inline decltr *make_id_decltr(char *id);
 static inline decltr *make_nested_decltr(decltr *nested);
 static inline decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk);
-static inline decltr *make_decltr_proto_suffix(param_list *params);
-static inline decltr *make_decltr_kr_suffix(id_list *ids);
+static inline decltr *make_decltr_proto_suffix(decltr *prev, param_list *params);
+static inline decltr *make_decltr_kr_suffix(decltr *prev, id_list *ids);
 static inline void add_pointer(pointer *ptr, decltr *decltr);
+
+static inline param_list *make_param_list(param_list *prev, decl *param_decl);
+
+static inline id_list *make_id_list(id_list *prev, char *id);
 
 static inline initializer *make_expr_init(expr *assignment);
 static inline initializer *make_list_init(init_list *list);
@@ -557,12 +644,17 @@ static inline void add_designator(designator *prev, designator *curr);
 
 static inline type_name *make_type_name(decl_specs *specs, decltr *suffix);
 
-static inline void add_storage_class(decl_spec_list *prev, storage_class storage);
-static inline void add_type_spec(decl_spec_list *prev, type_spec *type_spec);
-static inline void add_type_qual(decl_spec_list *prev, type_qual type_qual);
-static inline void add_func_spec(decl_spec_list *prev, func_spec func_spec);
+static inline decl_spec_list *add_storage_class(decl_spec_list *next, storage_class storage);
+static inline decl_spec_list *add_type_spec(decl_spec_list *next, type_spec *type_spec);
+static inline decl_spec_list *add_type_qual(decl_spec_list *next, type_qual type_qual);
+static inline decl_spec_list *add_func_spec(decl_spec_list *next, func_spec func_spec);
 
 static inline type_qual_list *make_type_qual_list(type_qual_list *prev, type_qual qual);
+
+static inline type_spec *make_basic_type_spec(type_spec_kind kind);
+static inline type_spec *make_sou_type_spec(sou_spec *sou);
+static inline type_spec *make_enum_type_spec(enum_spec *enums);
+static inline type_spec *make_typedef_type_spec(char *name);
 
 // Statements
 static inline stmt *make_expr_stmt(expr *expr);
@@ -570,12 +662,23 @@ static inline stmt *make_compound_stmt(block_list *block);
 static inline stmt *make_conditional_stmt(stmt_kind kind, expr *cond, stmt *body, stmt *else_body);
 static inline stmt *make_for_decl_stmt(decl *init, expr *cond, expr *update, stmt *body);
 static inline stmt *make_for_expr_stmt(expr *init, expr *cond, expr *update, stmt *body);
-static inline stmt *make_labeled_stmt(char *label, stmt *stmt);
+static inline stmt *make_labeled_stmt(char *label, stmt *next);
 static inline stmt *make_case_stmt(expr *case_expr, stmt *result);
 static inline stmt *make_default_stmt(stmt *result);
 static inline stmt *make_goto_stmt(char *label);
 static inline stmt *make_return_stmt(expr *result);
 static inline stmt *make_empty_stmt(stmt_kind kind); // For continue, break, and empty return
 
-static inline block_list *make_stmt_block_item(block_list *prev, stmt *stmt);
-static inline block_list *make_decl_block_item(block_list *prev, decl *decl);
+static inline block_list *make_stmt_block_item(stmt *stmt);
+static inline block_list *make_decl_block_item(decl *decl);
+static inline void add_block_item(block_list *prev, block_list *curr);
+
+// Function definition
+static inline func_def *make_func_def(func_def_kind kind, decl_specs *specs, decltr *decltr, decl_list *decls, stmt *body);
+
+// External declaration
+static inline ext_decl *make_func_ext_decl(func_def *func);
+static inline ext_decl *make_decl_ext_decl(decl *decl);
+
+// Translation unit
+static inline translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr);

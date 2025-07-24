@@ -71,6 +71,8 @@ void sym_pop_scope(void) {
 void sym_insert(const char *name, sym_kind kind) {
     // Typically if sym_push_scope() is not called before yyparse()
     if (!curr_scope) sym_push_scope();
+    
+    name = strdup(name);
     size_t hash = str_hash(name);
 
     // Check if it already exists in this scope

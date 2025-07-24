@@ -61,22 +61,22 @@ WS          [ \t\v\n\f]
 "_Imaginary"		        { return IMAGINARY; }
 "__func__"                  { return FUNC_NAME; }
 
-{L}({L}|{D})*		        { yylval.sval = yytext; return check_type(); }
+{L}({L}|{D})*		        { yylval.sval = strdup(yytext); return check_type(); }
 
-0[xX]{H}+{IS}?		        { yylval.sval = yytext; return CONST_INT; }
-0[0-7]*{IS}?		        { yylval.sval = yytext; return CONST_INT; }
-[1-9]{D}*{IS}?		        { yylval.sval = yytext; return CONST_INT; }
-L?'(\\.|[^\\'\n])+'	        { yylval.sval = yytext; return CONST_INT; }
+0[xX]{H}+{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
+0[0-7]*{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
+[1-9]{D}*{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
+L?'(\\.|[^\\'\n])+'	        { yylval.sval = strdup(yytext); return CONST_INT; }
 
-{D}+{E}{FS}?		        { yylval.sval = yytext; return CONST_FLOAT; }
-{D}*"."{D}+{E}?{FS}?	    { yylval.sval = yytext; return CONST_FLOAT; }
-{D}+"."{D}*{E}?{FS}?	    { yylval.sval = yytext; return CONST_FLOAT; }
-0[xX]{H}+{P}{FS}?	        { yylval.sval = yytext; return CONST_FLOAT; }
-0[xX]{H}*"."{H}+{P}{FS}?    { yylval.sval = yytext; return CONST_FLOAT; }
-0[xX]{H}+"."{H}*{P}{FS}?    { yylval.sval = yytext; return CONST_FLOAT; }
+{D}+{E}{FS}?		        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+{D}*"."{D}+{E}?{FS}?	    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+{D}+"."{D}*{E}?{FS}?	    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+0[xX]{H}+{P}{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+0[xX]{H}*"."{H}+{P}{FS}?    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+0[xX]{H}+"."{H}*{P}{FS}?    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 
 
-L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = yytext; return STR_LITERAL; }
+L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = strdup(yytext); return STR_LITERAL; }
 
 "..."			            { return ELLIPSIS; }
 ">>="			            { return RSHIFT_ASSIGN; }
