@@ -1,9 +1,18 @@
 %{
 #include <stdio.h>
-#include "token_types.h"
 #include "symbol_table.h"
 #include "parser_helpers.h"
 #include "ast.h"
+
+translation_unit *ast_root;
+
+int yylex(void);
+
+void yyerror(const char *s) {
+	fflush(stdout);
+	fprintf(stderr, "*** %s\n", s);
+}
+
 %}
 
 %token DEFAULT IF ELSE SWITCH CASE WHILE DO FOR GOTO CONTINUE BREAK RETURN
@@ -30,6 +39,10 @@
 
 %token CONST_INT CONST_FLOAT STR_LITERAL FUNC_NAME SIZEOF
 
+// Precedence to resolve shift-reduce conflict in if-statements
+%nonassoc NO_ELSE
+%nonassoc ELSE
+
 // Start declaration
 %start translation_unit
 
@@ -39,7 +52,6 @@
     expr *expr;
     constant *constant;
     decl *decl;
-    decl_list *decl_list;
     decl_spec_list *decl_spec_list;
     init_list *init_list;
     initializer *initializer;
@@ -54,9 +66,8 @@
     pointer *pointer;
     type_qual_list *type_qual_list;
     param_list *param_list;
-    id_list *id_list;
     type_name *type_name;
-    designator *designator;
+    designation *designation;
     stmt *stmt;
     block_list *block_list;
     translation_unit *translation_unit;
@@ -100,7 +111,6 @@
 
 // Declarations
 %type <decl> declaration parameter_declaration
-%type <decl_list> declaration_list
 %type <decl_spec_list> declaration_specifiers specifier_qualifier_list
 %type <initializer> initializer
 %type <init_list> initializer_list
@@ -118,9 +128,8 @@
 %type <pointer> pointer
 %type <type_qual_list> type_qualifier_list
 %type <param_list> parameter_type_list parameter_list
-%type <id_list> identifier_list
 %type <type_name> type_name
-%type <designator> designation designator designator_list
+%type <designation> designation designator designator_list
 %type <stmt> statement expression_statement labeled_statement compound_statement
 %type <stmt> selection_statement iteration_statement jump_statement
 %type <block_list> block_item block_item_list
@@ -128,13 +137,20 @@
 %type <ext_decl> external_declaration
 %type <translation_unit> translation_unit
 
+%code requires {
+    #include "ast.h"
+}
+
+%output "parser.c"
+%defines "parser.h"
+
 %%
 
 primary_expression
 	: IDENTIFIER            { $$ = make_id_expr($1); free($1); }
 	| constant              { $$ = make_const_expr($1); }
-	| string                { $$ = make_str_expr($1); }
-	| '(' expression ')'    { $$ = $1; }
+	| string                { $$ = make_string_expr($1); }
+	| '(' expression ')'    { $$ = $2; }
 	;
 
 constant
@@ -160,8 +176,8 @@ postfix_expression
 	;
 
 argument_expression_list
-	: assignment_expression                                 { $$ = $1; }
-	| argument_expression_list ',' assignment_expression    { $$ = make_expr($1, $3); }
+	: assignment_expression                                 { $$ = make_expr(EXPR_ARG, $1, 0); }
+	| argument_expression_list ',' assignment_expression    { $$ = make_expr(EXPR_ARG, $3, $1); }
 	;
 
 unary_expression
@@ -169,7 +185,7 @@ unary_expression
 	| INCREMENT unary_expression        { $$ = make_expr(EXPR_PRE_INCR, $2, 0); }
 	| DECREMENT unary_expression        { $$ = make_expr(EXPR_PRE_DECR, $2, 0); }
 	| unary_operator cast_expression    { $$ = make_expr($1, $2, 0); }
-	| SIZEOF unary_expression           { $$ = make_expr(EXPR_SIZEOF, $2, 0); }
+	| SIZEOF unary_expression           { $$ = make_expr(EXPR_SIZEOF_EXPR, $2, 0); }
 	| SIZEOF '(' type_name ')'          { $$ = make_sizeof_expr($3); }
 	;
 
@@ -313,18 +329,18 @@ storage_class_specifier
 	;
 
 type_specifier
-	: VOID                      { $$ = make_type_spec(TS_VOID); }
-	| CHAR                      { $$ = make_type_spec(TS_CHAR); }
-	| SHORT                     { $$ = make_type_spec(TS_SHORT); }
-	| INT                       { $$ = make_type_spec(TS_INT); }
-	| LONG                      { $$ = make_type_spec(TS_LONG); }
-	| FLOAT                     { $$ = make_type_spec(TS_FLOAT); }
-	| DOUBLE                    { $$ = make_type_spec(TS_DOUBLE); }
-	| SIGNED                    { $$ = make_type_spec(TS_SIGNED); }
-	| UNSIGNED                  { $$ = make_type_spec(TS_UNSIGNED); }
-	| BOOL                      { $$ = make_type_spec(TS_BOOL); }
-	| COMPLEX                   { $$ = make_type_spec(TS_COMPLEX); }
-	| IMAGINARY                 { $$ = make_type_spec(TS_IMAGINARY); }
+	: VOID                      { $$ = make_basic_type_spec(TS_VOID); }
+	| CHAR                      { $$ = make_basic_type_spec(TS_CHAR); }
+	| SHORT                     { $$ = make_basic_type_spec(TS_SHORT); }
+	| INT                       { $$ = make_basic_type_spec(TS_INT); }
+	| LONG                      { $$ = make_basic_type_spec(TS_LONG); }
+	| FLOAT                     { $$ = make_basic_type_spec(TS_FLOAT); }
+	| DOUBLE                    { $$ = make_basic_type_spec(TS_DOUBLE); }
+	| SIGNED                    { $$ = make_basic_type_spec(TS_SIGNED); }
+	| UNSIGNED                  { $$ = make_basic_type_spec(TS_UNSIGNED); }
+	| BOOL                      { $$ = make_basic_type_spec(TS_BOOL); }
+	| COMPLEX                   { $$ = make_basic_type_spec(TS_COMPLEX); }
+	| IMAGINARY                 { $$ = make_basic_type_spec(TS_IMAGINARY); }
 	| struct_or_union_specifier { $$ = make_sou_type_spec($1); }
 	| enum_specifier            { $$ = make_enum_type_spec($1); }
 	| TYPEDEF_NAME              { $$ = make_typedef_type_spec($1); }
@@ -347,7 +363,7 @@ struct_declaration_list
 	;
 
 struct_declaration
-	: specifier_qualifier_list struct_declarator_list ';'   { $$ = make_struct_decl_list($1, $2); }
+	: specifier_qualifier_list struct_declarator_list ';'   { $$ = make_struct_decl_list(make_decl_specs($1), $2); }
 	;
 
 specifier_qualifier_list
@@ -410,14 +426,13 @@ direct_declarator
 	| '(' declarator ')'                                                            { $$ = make_nested_decltr($2); }
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'           { $$ = make_decltr_array_suffix($1, $3, $4, 0, 0); }
 	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0, 0, 0); }
-	| direct_declarator '[' assignment_expression ']'                               { $$ = make_decltr_array_suffix($1, $3, $4, 0, 0); }
+	| direct_declarator '[' assignment_expression ']'                               { $$ = make_decltr_array_suffix($1, 0, $3, 0, 0); }
 	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'    { $$ = make_decltr_array_suffix($1, $4, $5, 1, 0); }
 	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'    { $$ = make_decltr_array_suffix($1, $3, $5, 1, 0); }
 	| direct_declarator '[' type_qualifier_list '*' ']'                             { $$ = make_decltr_array_suffix($1, $3, 0, 0, 0); }
 	| direct_declarator '[' '*' ']'                                                 { $$ = make_decltr_array_suffix($1, 0, 0, 0, 1); }
 	| direct_declarator '[' ']'                                                     { $$ = make_decltr_array_suffix($1, 0, 0, 0, 0); }
 	| direct_declarator '(' parameter_type_list ')'                                 { $$ = make_decltr_proto_suffix($1, $3); }
-	| direct_declarator '(' identifier_list ')'                                     { $$ = make_decltr_kr_suffix($1, $3); }
 	| direct_declarator '(' ')'                                                     { $$ = make_decltr_proto_suffix($1, 0); }
 	;
 
@@ -445,14 +460,9 @@ parameter_list
 	;
 
 parameter_declaration
-	: declaration_specifiers declarator             { $$ = make_param_decl(make_decl_specs($1), $2); }
-	| declaration_specifiers abstract_declarator    { $$ = make_param_decl(make_decl_specs($1), $2); }
-	| declaration_specifiers                        { $$ = make_param_decl(make_decl_specs($1), 0); }
-	;
-
-identifier_list
-	: IDENTIFIER                        { $$ = make_id_list(0, $1); }
-	| identifier_list ',' IDENTIFIER    { $$ = make_id_list($1, $3); }
+	: declaration_specifiers declarator             { $$ = make_param_decl(make_decl_specs($1), $2, 0); }
+	| declaration_specifiers abstract_declarator    { $$ = make_param_decl(make_decl_specs($1), $2, 1); }
+	| declaration_specifiers                        { $$ = make_param_decl(make_decl_specs($1), 0, 0); }
 	;
 
 type_name
@@ -461,7 +471,7 @@ type_name
 	;
 
 abstract_declarator
-	: pointer                               { $$ = make_empty_decltr(1); }
+	: pointer                               { $$ = make_empty_decltr($1); }
 	| direct_abstract_declarator            { $$ = $1; }
 	| pointer direct_abstract_declarator    { add_pointer($1, $2); }
 	;
@@ -526,7 +536,7 @@ compound_statement
 	: '{' '}'           { $$ = make_compound_stmt(0); }
 	| '{'               { sym_push_scope(); }
        block_item_list
-       '}'              { sym_pop_scope(); $$ = make_compound_stmt($2); }
+       '}'              { sym_pop_scope(); $$ = make_compound_stmt($3); }
 	;
 
 block_item_list
@@ -545,9 +555,9 @@ expression_statement
 	;
 
 selection_statement
-	: IF '(' expression ')' statement                   { $$ = make_conditional_stmt(STMT_IF, $3, $5, 0); }
+	: IF '(' expression ')' statement %prec NO_ELSE     { $$ = make_conditional_stmt(STMT_IF, $3, $5, 0); }
 	| IF '(' expression ')' statement ELSE statement    { $$ = make_conditional_stmt(STMT_IF, $3, $5, $7); }
-	| SWITCH '(' expression ')' statement               { $$ = make_conditional_stmt(STMT_SWITCH, $3, $5); }
+	| SWITCH '(' expression ')' statement               { $$ = make_conditional_stmt(STMT_SWITCH, $3, $5, 0); }
 	;
 
 iteration_statement
@@ -568,8 +578,8 @@ jump_statement
 	;
 
 translation_unit
-	: external_declaration                  { $$ = make_trans_unit(0, $1); }
-	| translation_unit external_declaration { $$ = make_trans_unit($1, $2); }
+	: external_declaration                  { $$ = make_trans_unit(0, $1); ast_root = $$; }
+	| translation_unit external_declaration { $$ = make_trans_unit($1, $2); ast_root = $$; }
 	;
 
 external_declaration
@@ -578,30 +588,12 @@ external_declaration
 	;
 
 function_definition
-	: declaration_specifiers declarator declaration_list    { set_func_name(get_decltr_id($2)); }
+	: declaration_specifiers declarator                     { set_func_name(get_decltr_id($2)); }
       compound_statement                                    
     {
         func_ended();
-        $$ = make_func_def(FD_KR, make_decl_specs($1), $2, $3, $4);
-    }
-	| declaration_specifiers declarator                     { set_func_name(get_decltr_id($2)); }
-      compound_statement                                    
-    {
-        func_ended();
-        $$ = make_func_def(FD_NORMAL, make_decl_specs($1), $2, 0, $3);
+        $$ = make_func_def(make_decl_specs($1), $2, $4);
     }
 	;
-
-declaration_list
-	: declaration                   { $$ = make_decl_list(0, $1); }
-	| declaration_list declaration  { $$ = make_decl_list($1, $2); }
-	;
-
 
 %%
-
-void yyerror(const char *s)
-{
-	fflush(stdout);
-	fprintf(stderr, "*** %s\n", s);
-}

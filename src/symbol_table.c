@@ -3,7 +3,6 @@
 */
 
 #include "symbol_table.h"
-#include "token_types.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,24 +11,23 @@
 #define P 67 // For hash function
 
 // Entry in the hash table
-typedef struct {
+typedef struct sym_entry_t {
     char *name;
     sym_kind kind;
-    sym_entry_t *next;
+    struct sym_entry_t *next;
 } sym_entry_t;
 
 // Stack of scopes
-typedef struct {
-    sym_entry_t *buckets[HASH_SIZE];
-    scope_t *prev;
+typedef struct scope_t {
+    struct sym_entry_t *buckets[HASH_SIZE];
+    struct scope_t *prev;
 } scope_t;
 
 // Uses rolling polynomial hash
 size_t str_hash(const char *str) {
-    int size = sizeof(str) / sizeof(char);
     unsigned int hash = 0;
     unsigned int curr_p = 1;
-    for (int i=0; i<size; i++) {
+    for (int i=0; str[i]; i++) {
         hash += str[i] * curr_p % HASH_SIZE;
         curr_p = curr_p * P % HASH_SIZE;
     }
@@ -72,12 +70,12 @@ void sym_insert(const char *name, sym_kind kind) {
     // Typically if sym_push_scope() is not called before yyparse()
     if (!curr_scope) sym_push_scope();
     
-    name = strdup(name);
-    size_t hash = str_hash(name);
+    char *name_dup = strdup(name);
+    size_t hash = str_hash(name_dup);
 
     // Check if it already exists in this scope
-    for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry->next) {
-        if (strcmp(name, entry->name) == 0) {
+    for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
+        if (strcmp(name_dup, entry->name) == 0) {
             // Weird thing in C where this name collision does not produce an error
             // Have typedefs take precedence over enums
             if (kind == SYM_TYPEDEF) {
@@ -93,7 +91,7 @@ void sym_insert(const char *name, sym_kind kind) {
         perror("Malloc error when adding new entry to symbol table");
         exit(1);
     }
-    new_entry->name = name;
+    new_entry->name = name_dup;
     new_entry->kind = kind;
     new_entry->next = curr_scope->buckets[hash];
     curr_scope->buckets[hash] = new_entry;

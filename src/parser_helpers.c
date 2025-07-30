@@ -4,6 +4,8 @@
 
 #include "parser_helpers.h"
 #include "error_handling.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -13,16 +15,16 @@
 
 char *curr_func;
 
-static inline void set_func_name(char *name) {
+void set_func_name(char *name) {
     curr_func = strcat(strcat("\"", name), "\"");
 }
 
-static inline void func_ended() {
+void func_ended() {
     free(curr_func);
     curr_func = 0;
 }
 
-static inline char *func_name() {
+char *func_name() {
     if (!curr_func) {
         printf("Error: __func_name__ used outside of function definition\n");
         return "";
@@ -36,11 +38,11 @@ static inline char *func_name() {
 
 bool has_ellipsis = 0;
 
-static inline void set_param_ellipsis(bool val) {
+void set_param_ellipsis(bool val) {
     has_ellipsis = val;
 }
 
-static inline bool check_param_ellipsis() {
+bool check_param_ellipsis() {
     return has_ellipsis;
 }
 
@@ -48,7 +50,7 @@ static inline bool check_param_ellipsis() {
     --------- Declarator ID ---------
 */
 
-static inline char *get_decltr_id(decltr *decltr) {
+char *get_decltr_id(decltr *decltr) {
     decltr_kind kind = decltr->kind;
 
     if (kind == DCTR_ID)
@@ -72,21 +74,20 @@ static block_list *reverse_block_list                   (block_list *node, bool 
 static init_list *reverse_init_list                     (init_list *node, bool is_head);
 static init_decltr *reverse_init_decltr_list            (init_decltr *node, bool is_head);
 static param_list *reverse_param_list                   (param_list *node, bool is_head);
-static id_list *reverse_id_list                         (id_list *node, bool is_head);
-static decl_list *reverse_decl_list                     (decl_list *node, bool is_head);
 static struct_decltr_list *reverse_struct_decltr_list   (struct_decltr_list *node, bool is_head);
 static struct_decl_list *reverse_struct_decl_list       (struct_decl_list *node, bool is_head);
 static enumerator_list *reverse_enumerator_list         (enumerator_list *node, bool is_head);
-static designator *reverse_designation                  (designator *node, bool is_head);
+static designation *reverse_designation                  (designation *node, bool is_head);
+static expr *reverse_argument_list                      (expr *node, bool is_head);
 
-static inline void reverse_in_type_spec     (type_spec *curr);
-static inline void reverse_in_decl_specs    (decl_specs *curr);
-static inline void reverse_in_expr          (expr *curr);
-static inline void reverse_in_decltr        (decltr *curr);
-static inline void reverse_in_initializer   (initializer *curr);
-static inline void reverse_in_decl          (decl *curr);
-static inline void reverse_in_stmt          (stmt *curr);
-static inline void reverse_in_func_def      (func_def *curr);
+static void reverse_in_type_spec     (type_spec *curr);
+static void reverse_in_decl_specs    (decl_specs *curr);
+static void reverse_in_expr          (expr *curr);
+static void reverse_in_decltr        (decltr *curr);
+static void reverse_in_initializer   (initializer *curr);
+static void reverse_in_decl          (decl *curr);
+static void reverse_in_stmt          (stmt *curr);
+static void reverse_in_func_def      (func_def *curr);
 
 
 // I realize that I used a suboptimal solution for list reversal
@@ -105,7 +106,7 @@ static block_list *reverse_block_list(block_list *node, bool is_head) {
     }
 
     // Reverse sublists
-    if (node->kind = BI_DECL) {
+    if (node->kind == BI_DECL) {
         reverse_in_decl(node->decl);
     } else if (node->kind == BI_STMT) {
         reverse_in_stmt(node->stmt);
@@ -164,35 +165,6 @@ static param_list *reverse_param_list(param_list *node, bool is_head) {
     return new_head;
 }
 
-static id_list *reverse_id_list(id_list *node, bool is_head) {
-    id_list *new_head = (node->next) ? reverse_id_list(node->next, false) : node;
-
-    if (node->next) {
-        node->next->next = node;
-    }
-    if (is_head) {
-        node->next = 0;
-    }
-
-    return new_head;
-}
-
-static decl_list *reverse_decl_list(decl_list *node, bool is_head) {
-    decl_list *new_head = (node->next) ? reverse_decl_list(node->next, false) : node;
-
-    if (node->next) {
-        node->next->next = node;
-    }
-    if (is_head) {
-        node->next = 0;
-    }
-
-    // Reverse sublists
-    reverse_in_decl(node->curr);
-
-    return new_head;
-}
-
 static struct_decltr_list *reverse_struct_decltr_list(struct_decltr_list *node, bool is_head) {
     struct_decltr_list *new_head = (node->next) ? reverse_struct_decltr_list(node->next, false) : node;
 
@@ -222,7 +194,7 @@ static struct_decl_list *reverse_struct_decl_list(struct_decl_list *node, bool i
 
     // Reverse sublists
     reverse_in_decl_specs(node->specs);
-    node->decltrs = reverse_struct_decltrs(node->decltrs, true);
+    node->decltrs = reverse_struct_decltr_list(node->decltrs, true);
 
     return new_head;
 }
@@ -243,8 +215,8 @@ static enumerator_list *reverse_enumerator_list(enumerator_list *node, bool is_h
     return new_head;
 }
 
-static designator *reverse_designation(designator *node, bool is_head) {
-    designator *new_head = (node->next) ? reverse_designation(node->next, false) : node;
+static designation *reverse_designation(designation *node, bool is_head) {
+    designation *new_head = (node->next) ? reverse_designation(node->next, false) : node;
 
     if (node->next) {
         node->next->next = node;
@@ -259,7 +231,24 @@ static designator *reverse_designation(designator *node, bool is_head) {
     return new_head;
 }
 
-static inline void reverse_in_type_spec(type_spec *curr) {
+// Note: automatically assumes this node is an argument expression list
+static expr *reverse_argument_list(expr *node, bool is_head) {
+    expr *new_head = (node->right) ? reverse_argument_list(node->right, false) : node;
+
+    if (node->right) {
+        node->right->right = node;
+    }
+    if (is_head) {
+        node->right = 0;
+    }
+
+    // Reverse sublists
+    reverse_in_expr(node->left);
+
+    return new_head;
+}
+
+static void reverse_in_type_spec(type_spec *curr) {
     if (!curr) return;
 
     if (curr->kind == TS_SOU) {
@@ -269,7 +258,7 @@ static inline void reverse_in_type_spec(type_spec *curr) {
     }
 }
 
-static inline void reverse_in_decl_specs(decl_specs *curr) {
+static void reverse_in_decl_specs(decl_specs *curr) {
     if (!curr) return;
 
     for (type_spec_list *spec = curr->type_specs; spec; spec = spec->next) {
@@ -277,13 +266,34 @@ static inline void reverse_in_decl_specs(decl_specs *curr) {
     }
 }
 
-static inline void reverse_in_expr(expr *curr) {
-    if (!curr || curr->kind != EXPR_INIT_LIST) return;
+static void reverse_in_expr(expr *curr) {
+    if (!curr) return;
 
-    curr->extra.init = reverse_init_list(curr->extra.init, true);
+    switch (curr->kind) {
+        case EXPR_INIT_LIST:
+            reverse_in_decltr(curr->extra.type->suffix);
+            curr->extra.init = reverse_init_list(curr->extra.init, true);
+            break;
+        case EXPR_CAST:
+            reverse_in_decltr(curr->extra.type->suffix);
+            break;
+        case EXPR_SIZEOF_TYPE:
+            reverse_in_decltr(curr->extra.type->suffix);
+            break;
+        case EXPR_CALL:
+            curr->right = reverse_argument_list(curr->right, true);
+            break;
+        case EXPR_CONDITIONAL:
+            reverse_in_expr(curr->extra.conditional);
+            break;
+        default:;
+    }
+
+    reverse_in_expr(curr->left);
+    reverse_in_expr(curr->right);
 }
 
-static inline void reverse_in_decltr(decltr *curr) {
+static void reverse_in_decltr(decltr *curr) {
     if (!curr) return;
 
     switch (curr->kind) {
@@ -292,13 +302,12 @@ static inline void reverse_in_decltr(decltr *curr) {
         case DCTR_ARRAY:
             reverse_in_expr(curr->array.size);
         case DCTR_FUNC_PROTO:
-            reverse_param_list(curr->func.params, true);
-        case DCTR_FUNC_KR:
-            curr->kr_ids = reverse_id_list(curr->kr_ids, true);
+            curr->func.params = reverse_param_list(curr->func.params, true);
+        default:;
     }
 }
 
-static inline void reverse_in_initializer(initializer *curr) {
+static void reverse_in_initializer(initializer *curr) {
     if (!curr) return;
 
     if (curr->kind == INIT_EXPR) {
@@ -309,7 +318,7 @@ static inline void reverse_in_initializer(initializer *curr) {
     }
 }
 
-static inline void reverse_in_decl(decl *curr) {
+static void reverse_in_decl(decl *curr) {
     if (!curr) return;
 
     switch (curr->kind) {
@@ -320,7 +329,7 @@ static inline void reverse_in_decl(decl *curr) {
     }
 }
 
-static inline void reverse_in_stmt(stmt *curr) {
+static void reverse_in_stmt(stmt *curr) {
     if (!curr) return;
 
     stmt_kind kind = curr->kind;
@@ -388,18 +397,18 @@ static inline void reverse_in_stmt(stmt *curr) {
             reverse_in_expr(curr->return_stmt.result);
             break;
         }
+        default:;
     }
 }
 
-static inline void reverse_in_func_def(func_def *curr) {
+static void reverse_in_func_def(func_def *curr) {
     if (!curr) return;
 
     reverse_in_decltr(curr->decltr);
     reverse_in_stmt(curr->body);
-    curr->decls = reverse_decl_list(curr->decls, true);
 }
 
-static translation_unit *reverse_lists(translation_unit *tree, bool is_head) {
+translation_unit *reverse_lists(translation_unit *tree, bool is_head) {
     translation_unit *new_head = (tree->next) ? reverse_lists(tree->next, false) : tree;
 
     if (tree->next) {

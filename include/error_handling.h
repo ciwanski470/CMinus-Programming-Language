@@ -5,7 +5,4 @@
 
 #pragma once
 
-#include <stdio.h>
-#include <stdlib.h>
-
-static inline void check_malloc_error(void *ptr, char *message);
+void check_malloc_error(void *ptr, char *message);

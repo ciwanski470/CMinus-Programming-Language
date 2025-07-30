@@ -1,11 +1,15 @@
+%option nounput
+
 %{
 #include <stdio.h>
-#include "token_types.h"
+#include "symbol_table.h"
+#include "parser.h"
 
 extern void yyerror(const char *); // Prints grammar errors
 extern int sym_type(const char *); // Returns symbol type from the symbol table
 
 static void comment(void);
+static int check_type();
 %}
 
 D			[0-9]
@@ -126,7 +130,7 @@ L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = strdup(yytext); return STR_LITERAL; }
 "?"			                { return '?'; }
 
 {WS}+		                { /* Consume whitespace */ }
-.			{ yyerror("Bad character") }
+.			{ yyerror("Bad character"); }
 
 %%
 

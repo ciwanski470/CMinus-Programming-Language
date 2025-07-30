@@ -13,7 +13,7 @@
     --------- Constant ---------
 */
 
-static inline constant *make_constant(const_kind kind, char *value) {
+constant *make_constant(const_kind kind, char *value) {
     constant *new_const = malloc(sizeof(constant));
     check_malloc_error(new_const, "Malloc error when creating new constant value");
 
@@ -28,13 +28,13 @@ static inline constant *make_constant(const_kind kind, char *value) {
 */
 
 // Helper function; not public
-static inline expr *malloc_expr() {
+expr *malloc_expr() {
     expr *new_expr = malloc(sizeof(expr));
     check_malloc_error(new_expr, "Malloc error when creatng new expression");
     return new_expr;
 }
 
-static inline expr *make_expr(expr_kind kind, expr *left, expr *right) {
+expr *make_expr(expr_kind kind, expr *left, expr *right) {
     expr *new_expr = malloc_expr();
 
     new_expr->left = left;
@@ -44,7 +44,7 @@ static inline expr *make_expr(expr_kind kind, expr *left, expr *right) {
     return new_expr;
 }
 
-static inline expr *make_id_expr(char *id) {
+expr *make_id_expr(char *id) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_ID;
@@ -53,7 +53,7 @@ static inline expr *make_id_expr(char *id) {
     return new_expr;
 }
 
-static inline expr *make_const_expr(constant *const_val) {
+expr *make_const_expr(constant *const_val) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_CONST;
@@ -62,7 +62,7 @@ static inline expr *make_const_expr(constant *const_val) {
     return new_expr;
 }
 
-static inline expr *make_string_expr(char *str) {
+expr *make_string_expr(char *str) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_STR_LITERAL;
@@ -71,7 +71,7 @@ static inline expr *make_string_expr(char *str) {
     return new_expr;
 }
 
-static inline expr *make_member_access_expr(expr_kind kind, expr *item, char *id) {
+expr *make_member_access_expr(expr_kind kind, expr *item, char *id) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = kind;
@@ -81,7 +81,7 @@ static inline expr *make_member_access_expr(expr_kind kind, expr *item, char *id
     return new_expr;
 }
 
-static inline expr *make_init_expr(type_name *type, init_list *init) {
+expr *make_init_expr(type_name *type, init_list *init) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_INIT_LIST;
@@ -91,16 +91,16 @@ static inline expr *make_init_expr(type_name *type, init_list *init) {
     return new_expr;
 }
 
-static inline expr *make_sizeof_expr(type_name *type) {
+expr *make_sizeof_expr(type_name *type) {
     expr *new_expr = malloc_expr();
 
-    new_expr->kind = EXPR_SIZEOF;
+    new_expr->kind = EXPR_SIZEOF_TYPE;
     new_expr->extra.type = type;
 
     return new_expr;
 }
 
-static inline expr *make_cast_expr(type_name *type, expr* val) {
+expr *make_cast_expr(type_name *type, expr* val) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_CAST;
@@ -110,7 +110,7 @@ static inline expr *make_cast_expr(type_name *type, expr* val) {
     return new_expr;
 }
 
-static inline expr *make_ternary_expr(expr *conditional, expr *first, expr *second) {
+expr *make_ternary_expr(expr *conditional, expr *first, expr *second) {
     expr *new_expr = malloc_expr();
 
     new_expr->left = first;
@@ -124,7 +124,7 @@ static inline expr *make_ternary_expr(expr *conditional, expr *first, expr *seco
     --------- Declarations ---------
 */
 
-static inline decl *make_normal_decl(decl_specs *specs, init_decltr *init) {
+decl *make_normal_decl(decl_specs *specs, init_decltr *init) {
     decl *new_decl = malloc(sizeof(decl));
     check_malloc_error(new_decl, "Malloc error when creating new decl");
 
@@ -135,7 +135,7 @@ static inline decl *make_normal_decl(decl_specs *specs, init_decltr *init) {
     return new_decl;
 }
 
-static inline decl *make_param_decl(decl_specs *specs, decltr *param_decltr, bool decltr_abstract) {
+decl *make_param_decl(decl_specs *specs, decltr *param_decltr, bool decltr_abstract) {
     decl *new_decl = malloc(sizeof(decl));
     check_malloc_error(new_decl, "Malloc error when creating new decl");
 
@@ -147,17 +147,7 @@ static inline decl *make_param_decl(decl_specs *specs, decltr *param_decltr, boo
     return new_decl;
 }
 
-static inline decl_list *make_decl_list(decl_list *prev, decl *curr) {
-    decl_list *new_decl_list = malloc(sizeof(decl_list));
-    check_malloc_error(new_decl_list, "Malloc error when creating new decl list");
-
-    new_decl_list->curr = curr;
-    new_decl_list->next = prev;
-
-    return new_decl_list;
-}
-
-static inline sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_list *decls) {
+sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_list *decls) {
     sou_spec *new_sou_spec = malloc(sizeof(sou_spec));
     check_malloc_error(new_sou_spec, "Malloc error when creating new sou specifier");
 
@@ -168,7 +158,7 @@ static inline sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_lis
     return new_sou_spec;
 }
 
-static inline struct_decl_list *make_struct_decl_list(decl_specs *specs, struct_decltr_list *decltrs) {
+struct_decl_list *make_struct_decl_list(decl_specs *specs, struct_decltr_list *decltrs) {
     struct_decl_list *new_sdl = malloc(sizeof(struct_decl_list));
     check_malloc_error(new_sdl, "Malloc error when creating new struct decl list");
 
@@ -178,11 +168,11 @@ static inline struct_decl_list *make_struct_decl_list(decl_specs *specs, struct_
     return new_sdl;
 }
 
-static inline void add_struct_decl(struct_decl_list *prev, struct_decl_list *curr) {
+void add_struct_decl(struct_decl_list *prev, struct_decl_list *curr) {
     curr->next = prev;
 }
 
-static inline struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *bits) {
+struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *bits) {
     struct_decltr_list *new_sdl = malloc(sizeof(struct_decltr_list));
     check_malloc_error(new_sdl, "Malloc error when creating new struct decltr list");
 
@@ -192,11 +182,11 @@ static inline struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *
     return new_sdl;
 }
 
-static inline void add_struct_decltr(struct_decltr_list *prev, struct_decltr_list *curr) {
+void add_struct_decltr(struct_decltr_list *prev, struct_decltr_list *curr) {
     curr->next = prev;
 }
 
-static inline init_decltr *make_init_decltr(decltr *decltr, initializer *init) {
+init_decltr *make_init_decltr(decltr *decltr, initializer *init) {
     init_decltr *new_init_decltr = malloc(sizeof(init_decltr));
     check_malloc_error(new_init_decltr, "Malloc error when creating new init_decltr");
 
@@ -206,11 +196,11 @@ static inline init_decltr *make_init_decltr(decltr *decltr, initializer *init) {
     return new_init_decltr;
 }
 
-static inline void add_init_decltr(init_decltr *prev, init_decltr *curr) {
+void add_init_decltr(init_decltr *prev, init_decltr *curr) {
     curr->next = prev;
 }
 
-static inline enum_spec *make_enum_spec(char *name, enumerator_list *enums) {
+enum_spec *make_enum_spec(char *name, enumerator_list *enums) {
     enum_spec *new_enum_spec = malloc(sizeof(enum_spec));
     check_malloc_error(new_enum_spec, "Malloc error when creating new enum specifier");
 
@@ -220,7 +210,7 @@ static inline enum_spec *make_enum_spec(char *name, enumerator_list *enums) {
     return new_enum_spec;
 }
 
-static inline enumerator_list *make_enum_list(char *name, expr *val) {
+enumerator_list *make_enum_list(char *name, expr *val) {
     enumerator_list *new_enum_list = malloc(sizeof(enumerator_list));
     check_malloc_error(new_enum_list, "Malloc error when creating new enum list");
 
@@ -230,34 +220,36 @@ static inline enumerator_list *make_enum_list(char *name, expr *val) {
     return new_enum_list;
 }
 
-static inline void add_enumerator(enumerator_list *prev, enumerator_list *curr) {
+void add_enumerator(enumerator_list *prev, enumerator_list *curr) {
     curr->next = prev;
 }
 
-static inline pointer *make_pointer(type_qual_list *quals, pointer *next) {
+pointer *make_pointer(type_qual_list *quals, pointer *next) {
     pointer *new_ptr = malloc(sizeof(pointer));
     check_malloc_error(new_ptr, "Malloc error when creating new pointer (struct)");
 
     new_ptr->type_quals = quals;
     new_ptr->next = next;
+
+    return new_ptr;
 }
 
 // Helper function; not public
-static inline decltr *malloc_decltr() {
+decltr *malloc_decltr() {
     decltr *new_decltr = malloc(sizeof(decltr));
     check_malloc_error(new_decltr, "Malloc error when creating new decltr");
     return new_decltr;
 }
 
-static inline decltr *make_empty_decltr(bool has_pointer) {
+decltr *make_empty_decltr(pointer *ptr) {
     decltr *new_decltr = malloc_decltr();
 
-    new_decltr->ptr = make_pointer(0, 0);
+    new_decltr->ptr = ptr;
 
     return new_decltr;
 }
 
-static inline decltr *make_id_decltr(char *id) {
+decltr *make_id_decltr(char *id) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_ID;
@@ -266,7 +258,7 @@ static inline decltr *make_id_decltr(char *id) {
     return new_decltr;
 }
 
-static inline decltr *make_nested_decltr(decltr *nested) {
+decltr *make_nested_decltr(decltr *nested) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_NESTED;
@@ -275,7 +267,7 @@ static inline decltr *make_nested_decltr(decltr *nested) {
     return new_decltr;
 }
 
-static inline decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk) {
+decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_ARRAY;
@@ -288,7 +280,7 @@ static inline decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *qua
     return new_decltr;
 }
 
-static inline decltr *make_decltr_proto_suffix(decltr *prev, param_list *params) {
+decltr *make_decltr_proto_suffix(decltr *prev, param_list *params) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_FUNC_PROTO;
@@ -299,17 +291,7 @@ static inline decltr *make_decltr_proto_suffix(decltr *prev, param_list *params)
     return new_decltr;
 }
 
-static inline decltr *make_decltr_kr_suffix(decltr *prev, id_list *ids) {
-    decltr *new_decltr = malloc_decltr();
-
-    new_decltr->kind = DCTR_FUNC_KR;
-    new_decltr->prev = prev;
-    new_decltr->kr_ids = ids;
-
-    return new_decltr;
-}
-
-static inline void add_pointer(pointer *ptr, decltr *decltr) {
+void add_pointer(pointer *ptr, decltr *decltr) {
     if (!decltr) {
         perror("Error trying to add pointer to null decltr");
         return;
@@ -317,7 +299,7 @@ static inline void add_pointer(pointer *ptr, decltr *decltr) {
     decltr->ptr = ptr;
 }
 
-static inline param_list *make_param_list(param_list *prev, decl *param_decl) {
+param_list *make_param_list(param_list *prev, decl *param_decl) {
     param_list *new_params = malloc(sizeof(param_list));
     check_malloc_error(new_params, "Malloc error when creating new param list");
 
@@ -327,17 +309,7 @@ static inline param_list *make_param_list(param_list *prev, decl *param_decl) {
     return new_params;
 }
 
-static inline id_list *make_id_list(id_list *prev, char *id) {
-    id_list *new_id_list = malloc(sizeof(id_list));
-    check_malloc_error(new_id_list, "Malloc error when creating new id list");
-
-    new_id_list->next = prev;
-    new_id_list->id = strdup(id);
-
-    return new_id_list;
-}
-
-static inline initializer *make_expr_init(expr *assignment) {
+initializer *make_expr_init(expr *assignment) {
     initializer *new_init = malloc(sizeof(initializer));
     check_malloc_error(new_init, "Malloc error when creating new initalizer");
 
@@ -346,7 +318,7 @@ static inline initializer *make_expr_init(expr *assignment) {
 
     return new_init;
 }
-static inline initializer *make_list_init(init_list *list) {
+initializer *make_list_init(init_list *list) {
     initializer *new_init = malloc(sizeof(initializer));
     check_malloc_error(new_init, "Malloc error when creating new initalizer");
 
@@ -356,7 +328,7 @@ static inline initializer *make_list_init(init_list *list) {
     return new_init;
 }
 
-static inline init_list *make_init_list(init_list *prev, designator *designation, initializer *init) {
+init_list *make_init_list(init_list *prev, designation *designation, initializer *init) {
     init_list *new_init_list = malloc(sizeof(init_list));
     check_malloc_error(new_init_list, "Malloc error when creating new init list");
 
@@ -367,31 +339,31 @@ static inline init_list *make_init_list(init_list *prev, designator *designation
     return new_init_list;
 }
 
-static inline designator *make_arr_designator(expr *index) {
-    designator *new_designator = malloc(sizeof(designator));
-    check_malloc_error(new_designator, "Malloc error when creating new designator");
+designation *make_arr_designator(expr *index) {
+    designation *new_designation = malloc(sizeof(designation));
+    check_malloc_error(new_designation, "Malloc error when creating new designation");
 
-    new_designator->kind = DSG_INDEX;
-    new_designator->index = index;
+    new_designation->kind = DSG_INDEX;
+    new_designation->index = index;
 
-    return new_designator;
+    return new_designation;
 }
 
-static inline designator *make_member_designator(char *member) {
-    designator *new_designator = malloc(sizeof(designator));
-    check_malloc_error(new_designator, "Malloc error when creating new designator");
+designation *make_member_designator(char *member) {
+    designation *new_designation = malloc(sizeof(designation));
+    check_malloc_error(new_designation, "Malloc error when creating new designation");
 
-    new_designator->kind = DSG_MEMBER;
-    new_designator->member = strdup(member);
+    new_designation->kind = DSG_MEMBER;
+    new_designation->member = strdup(member);
 
-    return new_designator;
+    return new_designation;
 }
 
-static inline void add_designator(designator *prev, designator *curr) {
+void add_designator(designation *prev, designation *curr) {
     curr->next = prev;
 }
 
-static inline type_name *make_type_name(decl_specs *specs, decltr *suffix) {
+type_name *make_type_name(decl_specs *specs, decltr *suffix) {
     type_name *new_type_name = malloc(sizeof(type_name));
     check_malloc_error(new_type_name, "Malloc error when creating new type name");
 
@@ -402,13 +374,13 @@ static inline type_name *make_type_name(decl_specs *specs, decltr *suffix) {
 }
 
 // Helper function; not public
-static inline decl_spec_list *malloc_spec_list() {
+decl_spec_list *malloc_spec_list() {
     decl_spec_list *new_specs = malloc(sizeof(decl_spec_list));
     check_malloc_error(new_specs, "Malloc error when creating new decl spec list");
     return new_specs;
 }
 
-static inline decl_spec_list *add_storage_class(decl_spec_list *next, storage_class storage) {
+decl_spec_list *add_storage_class(decl_spec_list *next, storage_class storage) {
     decl_spec_list *new_specs = malloc_spec_list();
 
     new_specs->kind = DS_STORAGE_CLASS;
@@ -418,7 +390,7 @@ static inline decl_spec_list *add_storage_class(decl_spec_list *next, storage_cl
     return new_specs;
 }
 
-static inline decl_spec_list *add_type_spec(decl_spec_list *next, type_spec *type_spec) {
+decl_spec_list *add_type_spec(decl_spec_list *next, type_spec *type_spec) {
     decl_spec_list *new_specs = malloc_spec_list();
 
     new_specs->kind = DS_TYPE_SPEC;
@@ -428,7 +400,7 @@ static inline decl_spec_list *add_type_spec(decl_spec_list *next, type_spec *typ
     return new_specs;
 }
 
-static inline decl_spec_list *add_type_qual(decl_spec_list *next, type_qual type_qual) {
+decl_spec_list *add_type_qual(decl_spec_list *next, type_qual type_qual) {
     decl_spec_list *new_specs = malloc_spec_list();
 
     new_specs->kind = DS_TYPE_QUAL;
@@ -438,7 +410,7 @@ static inline decl_spec_list *add_type_qual(decl_spec_list *next, type_qual type
     return new_specs;
 }
 
-static inline decl_spec_list *add_func_spec(decl_spec_list *next, func_spec func_spec) {
+decl_spec_list *add_func_spec(decl_spec_list *next, func_spec func_spec) {
     decl_spec_list *new_specs = malloc_spec_list();
 
     new_specs->kind = DS_FUNC_SPEC;
@@ -448,7 +420,7 @@ static inline decl_spec_list *add_func_spec(decl_spec_list *next, func_spec func
     return new_specs;
 }
 
-static inline type_qual_list *make_type_qual_list(type_qual_list *prev, type_qual qual) {
+type_qual_list *make_type_qual_list(type_qual_list *prev, type_qual qual) {
     type_qual_list *new_qual_list = malloc(sizeof(type_qual_list));
     check_malloc_error(new_qual_list, "Malloc error when creating new type qual list");
 
@@ -458,19 +430,21 @@ static inline type_qual_list *make_type_qual_list(type_qual_list *prev, type_qua
     return new_qual_list;
 }
 
-static inline type_spec *malloc_type_spec() {
+type_spec *malloc_type_spec() {
     type_spec *new_type_spec = malloc(sizeof(type_spec));
     check_malloc_error(new_type_spec, "Malloc error when creating new type spec");
     return new_type_spec;
 }
 
-static inline type_spec *make_basic_type_spec(type_spec_kind kind) {
+type_spec *make_basic_type_spec(type_spec_kind kind) {
     type_spec *new_type_spec = malloc_type_spec();
     
     new_type_spec->kind = kind;
+
+    return new_type_spec;
 }
 
-static inline type_spec *make_sou_type_spec(sou_spec *sou) {
+type_spec *make_sou_type_spec(sou_spec *sou) {
     type_spec *new_type_spec = malloc_type_spec();
 
     new_type_spec->kind = TS_SOU;
@@ -479,7 +453,7 @@ static inline type_spec *make_sou_type_spec(sou_spec *sou) {
     return new_type_spec;
 }
 
-static inline type_spec *make_enum_type_spec(enum_spec *enums) {
+type_spec *make_enum_type_spec(enum_spec *enums) {
     type_spec *new_type_spec = malloc_type_spec();
 
     new_type_spec->kind = TS_ENUM;
@@ -488,7 +462,7 @@ static inline type_spec *make_enum_type_spec(enum_spec *enums) {
     return new_type_spec;
 }
 
-static inline type_spec *make_typedef_type_spec(char *name) {
+type_spec *make_typedef_type_spec(char *name) {
     type_spec *new_type_spec = malloc_type_spec();
 
     new_type_spec->kind = TS_TYPEDEF;
@@ -502,13 +476,13 @@ static inline type_spec *make_typedef_type_spec(char *name) {
 */
 
 // Helper function; not public
-static inline stmt *malloc_stmt() {
+stmt *malloc_stmt() {
     stmt *new_stmt = malloc(sizeof(stmt));
     check_malloc_error(new_stmt, "Malloc error when creating new statement");
     return new_stmt;
 }
 
-static inline stmt *make_expr_stmt(expr *expr) {
+stmt *make_expr_stmt(expr *expr) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_EXPR;
@@ -517,7 +491,7 @@ static inline stmt *make_expr_stmt(expr *expr) {
     return new_stmt;
 }
 
-static inline stmt *make_compound_stmt(block_list *block) {
+stmt *make_compound_stmt(block_list *block) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_COMPOUND;
@@ -526,7 +500,7 @@ static inline stmt *make_compound_stmt(block_list *block) {
     return new_stmt;
 }
 
-static inline stmt *make_conditional_stmt(stmt_kind kind, expr *cond, stmt *body, stmt *else_body) {
+stmt *make_conditional_stmt(stmt_kind kind, expr *cond, stmt *body, stmt *else_body) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = kind;
@@ -537,33 +511,33 @@ static inline stmt *make_conditional_stmt(stmt_kind kind, expr *cond, stmt *body
     return new_stmt;
 }
 
-static inline stmt *make_for_decl_stmt(decl *init, expr *cond, expr *update, stmt *body) {
+stmt *make_for_decl_stmt(decl *init, stmt *cond, expr *update, stmt *body) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_FOR;
     new_stmt->for_stmt.kind = FOR_DECL;
     new_stmt->for_stmt.init.decl = init;
-    new_stmt->for_stmt.cond = cond;
+    new_stmt->for_stmt.cond = cond->expr_stmt;
     new_stmt->for_stmt.update = update;
     new_stmt->for_stmt.body = body;
 
     return new_stmt;
 }
 
-static inline stmt *make_for_expr_stmt(expr *init, expr *cond, expr *update, stmt *body) {
+stmt *make_for_expr_stmt(stmt *init, stmt *cond, expr *update, stmt *body) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_FOR;
     new_stmt->for_stmt.kind = FOR_EXPR;
-    new_stmt->for_stmt.init.expr = init;
-    new_stmt->for_stmt.cond = cond;
+    new_stmt->for_stmt.init.expr = init->expr_stmt;
+    new_stmt->for_stmt.cond = cond->expr_stmt;
     new_stmt->for_stmt.update = update;
     new_stmt->for_stmt.body = body;
 
     return new_stmt;
 }
 
-static inline stmt *make_labeled_stmt(char *label, stmt *next) {
+stmt *make_labeled_stmt(char *label, stmt *next) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_LABEL;
@@ -573,7 +547,7 @@ static inline stmt *make_labeled_stmt(char *label, stmt *next) {
     return new_stmt;
 }
 
-static inline stmt *make_case_stmt(expr *case_expr, stmt *result) {
+stmt *make_case_stmt(expr *case_expr, stmt *result) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_CASE;
@@ -583,7 +557,7 @@ static inline stmt *make_case_stmt(expr *case_expr, stmt *result) {
     return new_stmt;
 }
 
-static inline stmt *make_default_stmt(stmt *result) {
+stmt *make_default_stmt(stmt *result) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_DEFAULT;
@@ -592,7 +566,7 @@ static inline stmt *make_default_stmt(stmt *result) {
     return new_stmt;
 }
 
-static inline stmt *make_goto_stmt(char *label) {
+stmt *make_goto_stmt(char *label) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_GOTO;
@@ -601,7 +575,7 @@ static inline stmt *make_goto_stmt(char *label) {
     return new_stmt;
 }
 
-static inline stmt *make_return_stmt(expr *result) {
+stmt *make_return_stmt(expr *result) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_RETURN;
@@ -611,7 +585,7 @@ static inline stmt *make_return_stmt(expr *result) {
 }
 
 // For continue, break, and empty return
-static inline stmt *make_empty_stmt(stmt_kind kind) {
+stmt *make_empty_stmt(stmt_kind kind) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = kind;
@@ -619,7 +593,7 @@ static inline stmt *make_empty_stmt(stmt_kind kind) {
     return new_stmt;
 }
 
-static inline block_list *make_stmt_block_item(stmt *stmt) {
+block_list *make_stmt_block_item(stmt *stmt) {
     block_list *new_block = malloc(sizeof(block_list));
     check_malloc_error(new_block, "Malloc error when creating new block list");
 
@@ -629,7 +603,7 @@ static inline block_list *make_stmt_block_item(stmt *stmt) {
     return new_block;
 }
 
-static inline block_list *make_decl_block_item(decl *decl) {
+block_list *make_decl_block_item(decl *decl) {
     block_list *new_block = malloc(sizeof(block_list));
     check_malloc_error(new_block, "Malloc error when creating new block list");
 
@@ -639,7 +613,7 @@ static inline block_list *make_decl_block_item(decl *decl) {
     return new_block;
 }
 
-static inline void add_block_item(block_list *prev, block_list *curr) {
+void add_block_item(block_list *prev, block_list *curr) {
     curr->next = prev;
 }
 
@@ -647,13 +621,11 @@ static inline void add_block_item(block_list *prev, block_list *curr) {
     --------- Function definition ---------
 */
 
-static inline func_def *make_func_def(func_def_kind kind, decl_specs *specs, decltr *decltr, decl_list *decls, stmt *body) {
+func_def *make_func_def(decl_specs *specs, decltr *decltr, stmt *body) {
     func_def *new_func = malloc(sizeof(func_def));
 
-    new_func->kind = kind;
     new_func->specs = specs;
     new_func->decltr = decltr;
-    new_func->decls = decls;
     new_func->body = body;
 
     return new_func;
@@ -663,7 +635,7 @@ static inline func_def *make_func_def(func_def_kind kind, decl_specs *specs, dec
     --------- External Declarations ---------
 */
 
-static inline ext_decl *make_func_ext_decl(func_def *func) {
+ext_decl *make_func_ext_decl(func_def *func) {
     ext_decl *new_ext_decl = malloc(sizeof(ext_decl));
     check_malloc_error(new_ext_decl, "Malloc error when creating new external decl");
 
@@ -673,7 +645,7 @@ static inline ext_decl *make_func_ext_decl(func_def *func) {
     return new_ext_decl;
 }
 
-static inline ext_decl *make_decl_ext_decl(decl *decl) {
+ext_decl *make_decl_ext_decl(decl *decl) {
     ext_decl *new_ext_decl = malloc(sizeof(ext_decl));
     check_malloc_error(new_ext_decl, "Malloc error when creating new external decl");
 
@@ -687,7 +659,7 @@ static inline ext_decl *make_decl_ext_decl(decl *decl) {
     --------- Translation Unit ---------
 */
 
-static inline translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr) {
+translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr) {
     translation_unit *new_trans_unit = malloc(sizeof(translation_unit));
     check_malloc_error(new_trans_unit, "Malloc error when creating new translation unit");
 
@@ -701,7 +673,7 @@ static inline translation_unit *make_trans_unit(translation_unit *prev, ext_decl
     --------- Extra helpers ---------
 */
 
-static inline decl_specs *make_decl_specs(decl_spec_list *list) {
+decl_specs *make_decl_specs(decl_spec_list *list) {
     decl_specs *specs = malloc(sizeof(decl_specs));
     check_malloc_error(specs, "Malloc error when initializing new decl_specs in AST");
     specs->storage = -1;
@@ -732,7 +704,7 @@ static inline decl_specs *make_decl_specs(decl_spec_list *list) {
 
                 new_qual->qual = curr->type_qual;
                 new_qual->next = type_quals;
-                specs->type_specs = new_qual;
+                specs->type_quals = new_qual;
                 break;
             } case DS_FUNC_SPEC: {
                 func_spec_list *func_specs = specs->func_specs;
@@ -745,6 +717,10 @@ static inline decl_specs *make_decl_specs(decl_spec_list *list) {
                 break;
             }
         }
+    }
+
+    if (specs->storage == -1) {
+        specs->storage = SC_NONE;
     }
 
     return specs;

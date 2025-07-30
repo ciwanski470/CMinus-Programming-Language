@@ -24,28 +24,28 @@ typedef enum {
         ENUM_CONST if it is a constant from an enum table
         IDENTIFIER if none of the above
 */
-static inline int sym_type(const char *token);
+int sym_type(const char *token);
 
 /*
     Pushes a new inner scope to the stack
     To be used at the start of a compound statement (at the '{')
     Ensure that this is always called exactly once right before calling yyparse()
 */
-static inline void sym_push_scope(void);
+void sym_push_scope(void);
 
 /*
     Removes the innermost scope from the stack
     To be used at the end of a compound statement (at the '}')
     Ensure that this is always called exactly once right after calling yyparse()
 */
-static inline void sym_pop_scope(void);
+void sym_pop_scope(void);
 
 /*
     Adds a new typedef to the current scope
 */
-static inline void sym_define_typedef(const char *name);
+void sym_define_typedef(const char *name);
 
 /*
     Adds a new enum to the current scope
 */
-static inline void sym_define_enum(const char *name);
+void sym_define_enum(const char *name);
