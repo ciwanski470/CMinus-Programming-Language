@@ -263,7 +263,7 @@ typedef struct expr {
 
     // Leaves or additional data
     union {
-        char *id;                   // EXPR_IDENTIFIER (leaf)
+        char *id;                   // EXPR_IDENTIFIER (leaf) or EXPR_MEMBER (both dot and arrow)
         struct constant *const_val; // EXPR_CONSTANT (leaf)
         char *str_val;              // EXPR_STR_LITERAL (leaf)
         struct expr *conditional;   // EXPR_CONDITIONAL (ternary)

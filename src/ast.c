@@ -37,9 +37,9 @@ expr *malloc_expr() {
 expr *make_expr(expr_kind kind, expr *left, expr *right) {
     expr *new_expr = malloc_expr();
 
+    new_expr->kind = kind;
     new_expr->left = left;
     new_expr->right = right;
-    new_expr->kind = kind;
 
     return new_expr;
 }
@@ -113,6 +113,7 @@ expr *make_cast_expr(type_name *type, expr* val) {
 expr *make_ternary_expr(expr *conditional, expr *first, expr *second) {
     expr *new_expr = malloc_expr();
 
+    new_expr->kind = EXPR_CONDITIONAL;
     new_expr->left = first;
     new_expr->right = second;
     new_expr->extra.conditional = conditional;

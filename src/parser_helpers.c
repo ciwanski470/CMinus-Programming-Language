@@ -4,6 +4,7 @@
 
 #include "parser_helpers.h"
 #include "error_handling.h"
+#include "symbol_table.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -16,7 +17,13 @@
 char *curr_func;
 
 void set_func_name(char *name) {
-    curr_func = strcat(strcat("\"", name), "\"");
+    size_t len = strlen(name);
+    curr_func = malloc(sizeof(char) * (len + 3));
+    if (!curr_func) {
+        perror("Malloc error when allocating new function name");
+        exit(1);
+    }
+    sprintf(curr_func, "\"%s\"", name);
 }
 
 void func_ended() {
@@ -66,6 +73,20 @@ char *get_decltr_id(decltr *decltr) {
 }
 
 /*
+    --------- Typedef Symbol ---------
+*/
+
+void add_typedef_type(decl *decl) {
+    if (decl->specs->storage != SC_TYPEDEF) return;
+
+    for (init_decltr *type_decltr = decl->init_decltrs; type_decltr; type_decltr = type_decltr->next) {
+        if (type_decltr->decltr) {
+            sym_define_typedef(get_decltr_id(type_decltr->decltr));
+        }
+    }
+}
+
+/*
     --------- List Reversal ---------
 */
 
@@ -96,6 +117,8 @@ static void reverse_in_func_def      (func_def *curr);
 
 
 static block_list *reverse_block_list(block_list *node, bool is_head) {
+    if (!node) return 0;
+
     block_list *new_head = (node->next) ? reverse_block_list(node->next, false) : node;
 
     if (node->next) {
@@ -116,6 +139,8 @@ static block_list *reverse_block_list(block_list *node, bool is_head) {
 }
 
 static init_list *reverse_init_list(init_list *node, bool is_head) {
+    if (!node) return 0;
+
     init_list *new_head = (node->next) ? reverse_init_list(node->next, false) : node;
 
     if (node->next) {
@@ -133,6 +158,8 @@ static init_list *reverse_init_list(init_list *node, bool is_head) {
 }
 
 static init_decltr *reverse_init_decltr_list(init_decltr *node, bool is_head) {
+    if (!node) return 0;
+    
     init_decltr *new_head = (node->next) ? reverse_init_decltr_list(node->next, false) : node;
 
     if (node->next) {
@@ -150,6 +177,8 @@ static init_decltr *reverse_init_decltr_list(init_decltr *node, bool is_head) {
 }
 
 static param_list *reverse_param_list(param_list *node, bool is_head) {
+    if (!node) return 0;
+    
     param_list *new_head = (node->next) ? reverse_param_list(node->next, false) : node;
 
     if (node->next) {
@@ -166,6 +195,8 @@ static param_list *reverse_param_list(param_list *node, bool is_head) {
 }
 
 static struct_decltr_list *reverse_struct_decltr_list(struct_decltr_list *node, bool is_head) {
+    if (!node) return 0;
+    
     struct_decltr_list *new_head = (node->next) ? reverse_struct_decltr_list(node->next, false) : node;
 
     if (node->next) {
@@ -183,6 +214,8 @@ static struct_decltr_list *reverse_struct_decltr_list(struct_decltr_list *node, 
 }
 
 static struct_decl_list *reverse_struct_decl_list(struct_decl_list *node, bool is_head) {
+    if (!node) return 0;
+    
     struct_decl_list *new_head = (node->next) ? reverse_struct_decl_list(node->next, false) : node;
 
     if (node->next) {
@@ -200,6 +233,8 @@ static struct_decl_list *reverse_struct_decl_list(struct_decl_list *node, bool i
 }
 
 static enumerator_list *reverse_enumerator_list(enumerator_list *node, bool is_head) {
+    if (!node) return 0;
+    
     enumerator_list *new_head = (node->next) ? reverse_enumerator_list(node->next, false) : node;
 
     if (node->next) {
@@ -216,6 +251,8 @@ static enumerator_list *reverse_enumerator_list(enumerator_list *node, bool is_h
 }
 
 static designation *reverse_designation(designation *node, bool is_head) {
+    if (!node) return 0;
+    
     designation *new_head = (node->next) ? reverse_designation(node->next, false) : node;
 
     if (node->next) {
@@ -233,6 +270,8 @@ static designation *reverse_designation(designation *node, bool is_head) {
 
 // Note: automatically assumes this node is an argument expression list
 static expr *reverse_argument_list(expr *node, bool is_head) {
+    if (!node) return 0;
+    
     expr *new_head = (node->right) ? reverse_argument_list(node->right, false) : node;
 
     if (node->right) {

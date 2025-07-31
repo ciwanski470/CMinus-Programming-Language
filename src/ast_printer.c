@@ -95,24 +95,27 @@ void print_ast(translation_unit *tree, char *output_name) {
 }
 
 static inline void print_indents() {
-    while (indents > 0) {
-        for (int _=0; _<TAB_SIZE; _++) {
+    for (int i=0; i<indents; i++) {
+        for (int j=0; j<TAB_SIZE; j++) {
             fprintf(file, " ");
         }
-        indents--;
     }
 }
 
 static void print_trans_unit(translation_unit *trans_unit) {
-    switch (trans_unit->action->kind) {
-        case EXT_DECL_FUNC:
-            ast_write("Function definition:\n");
-            print_func_def(trans_unit->action->func);
-            break;
-        case EXT_DECL_SIMPLE:
-            ast_write("Declaration:\n");
-            print_decl(trans_unit->action->decl);
-            break;
+    for (translation_unit *curr = trans_unit; curr; curr = curr->next) {
+        switch (curr->action->kind) {
+            case EXT_DECL_FUNC:
+                ast_write("Function definition:\n");
+                print_func_def(curr->action->func);
+                break;
+            case EXT_DECL_SIMPLE:
+                ast_write("Declaration:\n");
+                print_decl(curr->action->decl);
+                break;
+        }
+        fprintf(file, "\n");
+        fflush(file);
     }
 }
 
@@ -154,8 +157,10 @@ static void print_decl(decl *decl) {
             print_init_decltrs(decl->init_decltrs);
             break;
         case DECL_PARAM:
-            ast_write("Parameter Declarator:\n");
-            print_decltr(decl->param_decltr);
+            if (decl->param_decltr) {
+                ast_write("Parameter Declarator:\n");
+                print_decltr(decl->param_decltr);
+            }
             break;
     }
 
@@ -164,7 +169,6 @@ static void print_decl(decl *decl) {
 
 static void print_decl_specs(decl_specs *specs) {
     indents++;
-
 
     switch (specs->storage) {
         case SC_AUTO:
@@ -182,27 +186,32 @@ static void print_decl_specs(decl_specs *specs) {
         case SC_TYPEDEF:
             ast_write("Storage Class: typedef\n");
             break;
-        default:
-            ast_write("Storage Class: None\n");
+        case SC_NONE:;
     }
 
-    ast_write("Type Qualifiers:\n");
-    print_type_qual_list(specs->type_quals);
+    if (specs->type_quals) {
+        ast_write("Type Qualifiers:\n");
+        print_type_qual_list(specs->type_quals);
+    }
 
-    ast_write("Function Specifiers:\n");
-    indents++;
-    for (func_spec_list *curr = specs->func_specs; curr; curr = curr->next) {
-        switch (curr->spec) {
-            case FS_INLINE:
-                ast_write("inline\n");
-                break;
+    if (specs->func_specs) {
+        ast_write("Function Specifiers:\n");
+        indents++;
+        for (func_spec_list *curr = specs->func_specs; curr; curr = curr->next) {
+            switch (curr->spec) {
+                case FS_INLINE:
+                    ast_write("inline\n");
+                    break;
+            }
         }
+        indents--;
     }
-    indents--;
 
-    ast_write("Type Specifiers:\n");
-    for (type_spec_list *curr = specs->type_specs; curr; curr = curr->next) {
-        print_type_spec(curr->type);
+    if (specs->type_specs) {
+        ast_write("Type Specifiers:\n");
+        for (type_spec_list *curr = specs->type_specs; curr; curr = curr->next) {
+            print_type_spec(curr->type);
+        }
     }
 
     indents--;
@@ -242,7 +251,7 @@ static void print_type_spec(type_spec *type) {
             ast_write("short\n");
             break;
         case TS_INT:
-            ast_write("void\n");
+            ast_write("int\n");
             break;
         case TS_LONG:
             ast_write("long\n");
@@ -268,21 +277,30 @@ static void print_type_spec(type_spec *type) {
         case TS_IMAGINARY:
             ast_write("_Imaginary\n");
             break;
-        case TS_SOU:
+        case TS_SOU: {
+            char *kind;
             switch (type->sou->kind) {
                 case SOU_STRUCT:
-                    ast_write("Struct %s:\n", type->sou->name);
+                    kind = "Struct";
+                    break;
                 case SOU_UNION:
-                    ast_write("Union %s:\n", type->sou->name);
+                    kind = "Union";
+                    break;
             }
-            print_sou_spec(type->sou);
+            if (type->sou->decls) {
+                ast_write("%s \"%s\":\n", kind, type->sou->name);
+                print_sou_spec(type->sou);
+            } else {
+                ast_write("%s \"%s\"\n", kind, type->sou->name);
+            }
             break;
+        }
         case TS_ENUM:
-            ast_write("Enum %s", type->enums->name);
+            ast_write("Enum \"%s\"\n", type->enums->name);
             print_enum_spec(type->enums);
             break;
         case TS_TYPEDEF:
-            ast_write("Typedef defined type: %s\n", type->type_name);
+            ast_write("Typedef: \"%s\"\n", type->type_name);
             break;
     }
 
@@ -299,6 +317,7 @@ static void print_sou_spec(sou_spec *sou) {
         print_decl_specs(curr->specs);
         ast_write("Declarators:\n");
         print_struct_decltrs(curr->decltrs);
+        indents--;
     }
 
     indents--;
@@ -332,7 +351,7 @@ static void print_enum_spec(enum_spec *specs) {
     for (enumerator_list *curr = specs->enum_list; curr; curr = curr->next) {
         ast_write("Enumerator:\n");
         indents++;
-        ast_write("Name: %s\n", curr->name);
+        ast_write("Name: \"%s\"\n", curr->name);
         if (curr->const_val) {
             ast_write("Value:\n");
             print_expr(curr->const_val);
@@ -350,8 +369,12 @@ static void print_init_decltrs(init_decltr *decltrs) {
     for (init_decltr *curr = decltrs; curr; curr = decltrs->next) {
         ast_write("Declarator:\n");
         print_decltr(curr->decltr);
-        ast_write("Initializer:\n");
-        print_initializer(curr->init);
+        if (curr->init) {
+            ast_write("Initializer:\n");
+            print_initializer(curr->init);
+        } else {
+            ast_write("Initializer: None\n");
+        }
     }
 
     indents--;
@@ -361,7 +384,9 @@ static void print_decltr(decltr *decltr) {
     indents++;
 
     if (decltr->prev) {
+        indents--;
         print_decltr(decltr->prev);
+        indents++;
     }
     
     if (decltr->ptr) {
@@ -394,7 +419,7 @@ static void print_decltr(decltr *decltr) {
             print_decltr(decltr->nested);
             break;
         case DCTR_ID:
-            ast_write("Identifier: %s\n", decltr->id);
+            ast_write("Identifier: \"%s\"\n", decltr->id);
             break;
         case DCTR_EMPTY:
             ast_write("Empty\n");
@@ -422,8 +447,6 @@ static void print_pointer(pointer *ptr) {
 }
 
 static void print_initializer(initializer *init) {
-    indents++;
-
     switch (init->kind) {
         case INIT_EXPR:
             print_expr(init->assignment);
@@ -432,8 +455,6 @@ static void print_initializer(initializer *init) {
             print_init_list(init->list);
             break;
     }
-    
-    indents--;
 }
 
 static void print_stmt(stmt *stmt) {
@@ -516,7 +537,7 @@ static void print_stmt(stmt *stmt) {
         case STMT_LABEL:
             ast_write("Labeled Statement:\n");
             indents++;
-            ast_write("Label: %s\n", stmt->label_stmt.label);
+            ast_write("Label: \"%s\"\n", stmt->label_stmt.label);
             ast_write("Statement:\n");
             print_stmt(stmt->label_stmt.next);
             indents--;
@@ -538,7 +559,7 @@ static void print_stmt(stmt *stmt) {
             indents--;
             break;
         case STMT_GOTO:
-            ast_write("Goto %s Statement:\n", stmt->goto_stmt.label);
+            ast_write("Goto \"%s\" Statement:\n", stmt->goto_stmt.label);
             break;
         case STMT_CONTINUE:
             ast_write("continue\n");
@@ -583,13 +604,13 @@ static void print_expr(expr *expr) {
 
     switch (expr->kind) {
         case EXPR_ID:
-            ast_write("Identifier: %s\n", expr->extra.id);
+            ast_write("Identifier: \"%s\"\n", expr->extra.id);
             break;
         case EXPR_CONST:
-            ast_write("Constant: %s\n", expr->extra.const_val->value);
+            ast_write("Constant: \"%s\"\n", expr->extra.const_val->value);
             break;
         case EXPR_STR_LITERAL:
-            ast_write("String: %s\n", expr->extra.str_val);
+            ast_write("String: \"%s\"\n", expr->extra.str_val);
             break;
 
         unary_expr_case(EXPR_POST_INCR, "Postfix Increment\n")
@@ -658,15 +679,13 @@ static void print_expr(expr *expr) {
             ast_write("Member Access\n");
             ast_write("Item:\n");
             print_expr(expr->left);
-            ast_write("Member:\n");
-            print_expr(expr->right);
+            ast_write("Member: \"%s\"\n", expr->extra.id);
             break;
         case EXPR_MEMBER_ARROW:
             ast_write("Pointer Member Access\n");
             ast_write("Item:\n");
             print_expr(expr->left);
-            ast_write("Member:\n");
-            print_expr(expr->right);
+            ast_write("Member: \"%s\"\n", expr->extra.id);
             break;
         case EXPR_INIT_LIST:
             ast_write("Initializer List\n");
@@ -696,10 +715,12 @@ static void print_expr(expr *expr) {
             print_expr(expr->extra.conditional);
             ast_write("First:\n");
             print_expr(expr->left);
-            ast_write("Second\n");
+            ast_write("Second:\n");
             print_expr(expr->right);
             break;
     }
+
+    fflush(file);
 
     indents--;
 }
@@ -738,7 +759,7 @@ static void print_designation(designation *desig) {
                 print_expr(desig->index);
                 break;
             case DSG_MEMBER:
-                ast_write("Member: %s\n", curr->member);
+                ast_write("Member: \"%s\"\n", curr->member);
                 break;
         }
     }

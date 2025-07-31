@@ -10,6 +10,8 @@
 #define HASH_SIZE 127
 #define P 67 // For hash function
 
+extern void yyerror(const char *s);
+
 // Entry in the hash table
 typedef struct sym_entry_t {
     char *name;
@@ -54,10 +56,10 @@ void sym_pop_scope(void) {
 
     for (int i=0; i<HASH_SIZE; i++) {
         sym_entry_t *entry = curr_scope->buckets[i];
-        while (entry->next) {
+        while (entry) {
             sym_entry_t *next = entry->next;
-            free(entry);
             free(entry->name);
+            free(entry);
             entry = next;
         }
     }
@@ -76,11 +78,7 @@ void sym_insert(const char *name, sym_kind kind) {
     // Check if it already exists in this scope
     for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
         if (strcmp(name_dup, entry->name) == 0) {
-            // Weird thing in C where this name collision does not produce an error
-            // Have typedefs take precedence over enums
-            if (kind == SYM_TYPEDEF) {
-                entry->kind = kind;
-            }
+            yyerror("illegal redefinition of a symbol within the same scope");
             return;
         }
     }
@@ -108,8 +106,8 @@ void sym_define_enum(const char *name) {
 int sym_type(const char *token) {
     size_t hash = str_hash(token);
     
-    for (scope_t *scope = curr_scope; scope; scope = curr_scope->prev) {
-        for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
+    for (scope_t *scope = curr_scope; scope; scope = scope->prev) {
+        for (sym_entry_t *entry = scope->buckets[hash]; entry; entry = entry->next) {
             if (strcmp(entry->name, token) == 0) {
                 return entry->kind;
             }

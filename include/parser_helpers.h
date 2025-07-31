@@ -19,9 +19,16 @@ char *func_name();
 void set_param_ellipsis(bool val);
 bool check_param_ellipsis();
 
-// Takes a declarator and traverses the tree until an id is found, and returns that id
-// Returns NULL if there is none (meaning the declarator is abstract)
+/*
+    Takes a declarator and traverses the tree until an id is found, and returns that id
+    Returns NULL if there is none (meaning the declarator is abstract)
+*/
 char *get_decltr_id(decltr *decltr);
+
+/*
+    If the given declaration is a typedef declaration, add the identifier to the symbol table
+*/
+void add_typedef_type(decl *decl);
 
 /*
     When parsing, many list structs end up in reverse order

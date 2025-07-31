@@ -143,6 +143,8 @@ void yyerror(const char *s) {
 
 %output "parser.c"
 %defines "parser.h"
+%define parse.trace
+%define api.value.type {union}
 
 %%
 
@@ -296,7 +298,11 @@ constant_expression
 
 declaration
 	: declaration_specifiers ';'                        { $$ = make_normal_decl(make_decl_specs($1), 0); }
-	| declaration_specifiers init_declarator_list ';'   { $$ = make_normal_decl(make_decl_specs($1), $2); }
+	| declaration_specifiers init_declarator_list ';'
+    {
+        $$ = make_normal_decl(make_decl_specs($1), $2);
+        add_typedef_type($$);
+    }
 	;
 
 declaration_specifiers

@@ -8,13 +8,21 @@
 
 extern FILE *yyin;
 extern translation_unit *ast_root;
+extern int yydebug;
 
 int main() {
-    yyin = fopen("example.txt", "r");
+    yyin = fopen("example.c", "r");
+    yydebug = 1;
+
+    printf("Opened File\n");
+    fflush(stdout);
     
     sym_push_scope();
     int success = yyparse();
     sym_pop_scope();
+
+    printf("Finished parsing\n");
+    fflush(stdout);
 
     if (success == 1) {
         perror("Syntax error; could not successfully parse program");
@@ -24,9 +32,15 @@ int main() {
         exit(1);
     }
 
+    // IMPORTANT NOTE: some things are not reversed
+    // I know that struct_decl_list fails to be reversed
     ast_root = reverse_lists(ast_root, 1);
+    printf("Reversed lists\n");
+    fflush(stdout);
 
     print_ast(ast_root, "output.ast");
+    printf("Printed AST\n");
+    fflush(stdout);
 
     exit(0);
 }

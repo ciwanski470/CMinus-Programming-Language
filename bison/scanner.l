@@ -1,5 +1,3 @@
-%option nounput
-
 %{
 #include <stdio.h>
 #include "symbol_table.h"
@@ -8,7 +6,6 @@
 extern void yyerror(const char *); // Prints grammar errors
 extern int sym_type(const char *); // Returns symbol type from the symbol table
 
-static void comment(void);
 static int check_type();
 %}
 
@@ -21,9 +18,17 @@ FS			(f|F|l|L)
 IS          ((u|U)|(u|U)?(l|L|ll|LL)|(l|L|ll|LL)(u|U))
 WS          [ \t\v\n\f]
 
+%option nounput
+%option yylineno
+
+%x COMMENT
+
 %%
-"/*"			            { comment(); }
-"//"[^\n]*                  { /* consume comment */ }
+"/*"			            { BEGIN(COMMENT); }
+<COMMENT>"*/"               { BEGIN(INITIAL); }
+<COMMENT>"\n"               { yylineno++; }
+<COMMENT>.                  { /* consume comment */ }
+"//".*                      { /* consume comment */ }
 
 
 "auto"			            { return AUTO; }
@@ -129,28 +134,15 @@ L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = strdup(yytext); return STR_LITERAL; }
 "|"			                { return '|'; }
 "?"			                { return '?'; }
 
+"\n"                        { yylineno++; }
 {WS}+		                { /* Consume whitespace */ }
-.			{ yyerror("Bad character"); }
+<<EOF>>                     { return 0; }
+.			                { yyerror("Bad character"); }
 
 %%
 
 int yywrap() {
 	return 1;
-}
-
-
-static void comment() {
-    int c;
-
-    while ((c = input()) != 0)
-        if (c == '*') {
-            while ((c = input()) == '*');
-
-            if (c == '/') return;
-            
-            if (c == 0) break;
-        }
-    yyerror("unterminated comment");
 }
 
 static int check_type() {
