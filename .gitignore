@@ -54,3 +54,6 @@ dkms.conf
 # Compiled files
 /main
 build/
+
+# Extra useless files
+.DS_Store
