@@ -1,5 +1,5 @@
 CXX = gcc
-CXXFLAGS = -Wall -Iinclude
+CXXFLAGS = -Wall -Wextra -Iinclude
 
 TARGET = main
 BUILD_DIR = build

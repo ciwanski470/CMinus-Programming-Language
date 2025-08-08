@@ -12,7 +12,7 @@ extern int yydebug;
 
 int main() {
     yyin = fopen("example.c", "r");
-    yydebug = 1;
+    yydebug = 0;
 
     printf("Opened File\n");
     fflush(stdout);
@@ -33,7 +33,7 @@ int main() {
     }
 
     // IMPORTANT NOTE: some things are not reversed
-    // I know that struct_decl_list fails to be reversed
+    // Lowkey buggy
     ast_root = reverse_lists(ast_root, 1);
     printf("Reversed lists\n");
     fflush(stdout);

@@ -144,7 +144,7 @@ void yyerror(const char *s) {
 %output "parser.c"
 %defines "parser.h"
 %define parse.trace
-%define api.value.type {union}
+//%define api.value.type {union}
 
 %%
 
@@ -429,7 +429,7 @@ declarator
 
 direct_declarator
 	: IDENTIFIER                                                                    { $$ = make_id_decltr($1); free($1); }     
-	| '(' declarator ')'                                                            { $$ = make_nested_decltr($2); }
+	| '(' declarator ')'                                                            { $$ = $2; }
 	| direct_declarator '[' type_qualifier_list assignment_expression ']'           { $$ = make_decltr_array_suffix($1, $3, $4, 0, 0); }
 	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0, 0, 0); }
 	| direct_declarator '[' assignment_expression ']'                               { $$ = make_decltr_array_suffix($1, 0, $3, 0, 0); }
@@ -483,7 +483,7 @@ abstract_declarator
 	;
 
 direct_abstract_declarator
-	: '(' abstract_declarator ')'                               { $$ = make_nested_decltr($2); }
+	: '(' abstract_declarator ')'                               { $$ = $2; }
 	| '[' ']'                                                   { $$ = make_decltr_array_suffix(0, 0, 0, 0, 0); }
 	| '[' assignment_expression ']'                             { $$ = make_decltr_array_suffix(0, 0, $2, 0, 0); }
 	| direct_abstract_declarator '[' ']'                        { $$ = make_decltr_array_suffix($1, 0, 0, 0, 0); }

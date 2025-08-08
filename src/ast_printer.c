@@ -325,6 +325,8 @@ static void print_sou_spec(sou_spec *sou) {
 
 static void print_struct_decltrs(struct_decltr_list *decltrs) {
     indents++;
+    printf("Printing struct declarators\n");
+    fflush(stdout);
 
     for (struct_decltr_list *curr = decltrs; curr; curr = curr->next) {
         if (curr->decltr) {
@@ -380,49 +382,47 @@ static void print_init_decltrs(init_decltr *decltrs) {
     indents--;
 }
 
-static void print_decltr(decltr *decltr) {
+static void print_decltr(decltr *dctr) {
     indents++;
 
-    if (decltr->prev) {
-        indents--;
-        print_decltr(decltr->prev);
-        indents++;
-    }
-    
-    if (decltr->ptr) {
+    if (dctr->ptr) {
         ast_write("Pointer:\n");
-        print_pointer(decltr->ptr);
+        print_pointer(dctr->ptr);
     }
 
-    switch (decltr->kind) {
-        case DCTR_ARRAY:
-            ast_write("Array Suffix:\n");
-            indents++;
-            ast_write("Static: %d\n", decltr->array.is_static);
-            ast_write("Has Asterisk: %d\n", decltr->array.has_asterisk);
-            ast_write("Type Qualifiers:\n");
-            print_type_qual_list(decltr->array.quals);
-            ast_write("Size:\n");
-            print_expr(decltr->array.size);
-            indents--;
-            break;
-        case DCTR_FUNC_PROTO:
-            ast_write("Function Suffix:\n");
-            indents++;
-            ast_write("Has ellipsis: %d\n", decltr->func.has_ellipsis);
-            ast_write("Parameters:\n");
-            print_param_list(decltr->func.params);
-            indents--;
-            break;
-        case DCTR_NESTED:
-            ast_write("Nested Declarator:\n");
-            print_decltr(decltr->nested);
-            break;
-        case DCTR_ID:
-            ast_write("Identifier: \"%s\"\n", decltr->id);
-            break;
-        case DCTR_EMPTY:
-            ast_write("Empty\n");
+    for (decltr *curr = dctr; curr; curr = curr->next) {
+        switch (curr->kind) {
+            case DCTR_ARRAY:
+                ast_write("Array Suffix:\n");
+                indents++;
+                ast_write("Static: %d\n", curr->array.is_static);
+                ast_write("Has Asterisk: %d\n", curr->array.has_asterisk);
+                if (curr->array.quals) {
+                    ast_write("Type Qualifiers:\n");
+                    print_type_qual_list(curr->array.quals);
+                }
+                if (curr->array.size) {
+                    ast_write("Size:\n");
+                    print_expr(curr->array.size);
+                } else {
+                    ast_write("Size: None\n");
+                }
+                indents--;
+                break;
+            case DCTR_FUNC_PROTO:
+                ast_write("Function Suffix:\n");
+                indents++;
+                ast_write("Has ellipsis: %d\n", curr->func.has_ellipsis);
+                ast_write("Parameters:\n");
+                print_param_list(curr->func.params);
+                indents--;
+                break;
+            case DCTR_ID:
+                ast_write("Identifier: \"%s\"\n", curr->id);
+                break;
+            case DCTR_EMPTY:
+                ast_write("Empty\n");
+        }
     }
 
     indents--;

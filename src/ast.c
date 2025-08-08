@@ -28,7 +28,7 @@ constant *make_constant(const_kind kind, char *value) {
 */
 
 // Helper function; not public
-expr *malloc_expr() {
+static inline expr *malloc_expr() {
     expr *new_expr = malloc(sizeof(expr));
     check_malloc_error(new_expr, "Malloc error when creatng new expression");
     return new_expr;
@@ -236,7 +236,7 @@ pointer *make_pointer(type_qual_list *quals, pointer *next) {
 }
 
 // Helper function; not public
-decltr *malloc_decltr() {
+static inline decltr *malloc_decltr() {
     decltr *new_decltr = malloc(sizeof(decltr));
     check_malloc_error(new_decltr, "Malloc error when creating new decltr");
     return new_decltr;
@@ -259,20 +259,11 @@ decltr *make_id_decltr(char *id) {
     return new_decltr;
 }
 
-decltr *make_nested_decltr(decltr *nested) {
-    decltr *new_decltr = malloc_decltr();
-
-    new_decltr->kind = DCTR_NESTED;
-    new_decltr->nested = nested;
-
-    return new_decltr;
-}
-
 decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_ARRAY;
-    new_decltr->prev = prev;
+    new_decltr->next = prev;
     new_decltr->array.has_asterisk = has_asterisk;
     new_decltr->array.is_static = is_static;
     new_decltr->array.quals = quals;
@@ -285,7 +276,7 @@ decltr *make_decltr_proto_suffix(decltr *prev, param_list *params) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_FUNC_PROTO;
-    new_decltr->prev = prev;
+    new_decltr->next = prev;
     new_decltr->func.has_ellipsis = check_param_ellipsis();
     new_decltr->func.params = params;
 
@@ -375,7 +366,7 @@ type_name *make_type_name(decl_specs *specs, decltr *suffix) {
 }
 
 // Helper function; not public
-decl_spec_list *malloc_spec_list() {
+static inline decl_spec_list *malloc_spec_list() {
     decl_spec_list *new_specs = malloc(sizeof(decl_spec_list));
     check_malloc_error(new_specs, "Malloc error when creating new decl spec list");
     return new_specs;
@@ -431,7 +422,7 @@ type_qual_list *make_type_qual_list(type_qual_list *prev, type_qual qual) {
     return new_qual_list;
 }
 
-type_spec *malloc_type_spec() {
+static inline type_spec *malloc_type_spec() {
     type_spec *new_type_spec = malloc(sizeof(type_spec));
     check_malloc_error(new_type_spec, "Malloc error when creating new type spec");
     return new_type_spec;
@@ -477,7 +468,7 @@ type_spec *make_typedef_type_spec(char *name) {
 */
 
 // Helper function; not public
-stmt *malloc_stmt() {
+static inline stmt *malloc_stmt() {
     stmt *new_stmt = malloc(sizeof(stmt));
     check_malloc_error(new_stmt, "Malloc error when creating new statement");
     return new_stmt;
@@ -677,12 +668,12 @@ translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr) {
 decl_specs *make_decl_specs(decl_spec_list *list) {
     decl_specs *specs = malloc(sizeof(decl_specs));
     check_malloc_error(specs, "Malloc error when initializing new decl_specs in AST");
-    specs->storage = -1;
+    specs->storage = SC_NONE;
 
     for (decl_spec_list *curr = list; curr; curr = curr->next) {
         switch (curr->kind) {
             case DS_STORAGE_CLASS: {
-                if (specs->storage != -1) {
+                if (specs->storage != SC_NONE) {
                     fprintf(stderr, "*** Declaration may not have more than one storage class");
                 }
                 specs->storage = curr->storage;
@@ -718,10 +709,6 @@ decl_specs *make_decl_specs(decl_spec_list *list) {
                 break;
             }
         }
-    }
-
-    if (specs->storage == -1) {
-        specs->storage = SC_NONE;
     }
 
     return specs;

@@ -133,7 +133,6 @@ typedef enum {
 typedef enum {
     DCTR_EMPTY,
     DCTR_ID,
-    DCTR_NESTED,
     DCTR_ARRAY,
     DCTR_FUNC_PROTO
 } decltr_kind;
@@ -261,7 +260,7 @@ typedef struct expr {
     struct expr *left;
     struct expr *right;
 
-    // Leaves or additional data
+    // Leaves or additional
     union {
         char *id;                   // EXPR_IDENTIFIER (leaf) or EXPR_MEMBER (both dot and arrow)
         struct constant *const_val; // EXPR_CONSTANT (leaf)
@@ -370,13 +369,12 @@ typedef struct param_list {
 } param_list;
 
 
+// Initially in reverse order during parsing
 typedef struct decltr {
     decltr_kind kind;
     struct pointer *ptr;
     union {
         char *id;
-
-        struct decltr *nested;
 
         struct {
             bool is_static;
@@ -391,7 +389,7 @@ typedef struct decltr {
         } func;
     };
 
-    struct decltr *prev;
+    struct decltr *next;
 } decltr;
 
 
@@ -593,7 +591,6 @@ pointer *make_pointer(type_qual_list *quals, pointer *next);
 
 decltr *make_empty_decltr(pointer *ptr); // For abstract
 decltr *make_id_decltr(char *id);
-decltr *make_nested_decltr(decltr *nested);
 decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk);
 decltr *make_decltr_proto_suffix(decltr *prev, param_list *params);
 void add_pointer(pointer *ptr, decltr *decltr);
