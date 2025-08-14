@@ -720,16 +720,15 @@ char *yytext;
 #line 1 "bison/scanner.l"
 #line 2 "bison/scanner.l"
 #include <stdio.h>
-#include "symbol_table.h"
+#include "parser_symbols.h"
 #include "parser.h"
 
 extern void yyerror(const char *); // Prints grammar errors
-extern int sym_type(const char *); // Returns symbol type from the symbol table
 
 static int check_type();
-#line 730 "lex.yy.c"
+#line 729 "lex.yy.c"
 
-#line 732 "lex.yy.c"
+#line 731 "lex.yy.c"
 
 #define INITIAL 0
 #define COMMENT 1
@@ -945,9 +944,9 @@ YY_DECL
 		}
 
 	{
-#line 26 "bison/scanner.l"
+#line 25 "bison/scanner.l"
 
-#line 950 "lex.yy.c"
+#line 949 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1016,538 +1015,538 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 27 "bison/scanner.l"
+#line 26 "bison/scanner.l"
 { BEGIN(COMMENT); }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 28 "bison/scanner.l"
+#line 27 "bison/scanner.l"
 { BEGIN(INITIAL); }
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 29 "bison/scanner.l"
+#line 28 "bison/scanner.l"
 { yylineno++; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 30 "bison/scanner.l"
+#line 29 "bison/scanner.l"
 { /* consume comment */ }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 31 "bison/scanner.l"
+#line 30 "bison/scanner.l"
 { /* consume comment */ }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 34 "bison/scanner.l"
+#line 33 "bison/scanner.l"
 { return AUTO; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 35 "bison/scanner.l"
+#line 34 "bison/scanner.l"
 { return BREAK; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 36 "bison/scanner.l"
+#line 35 "bison/scanner.l"
 { return CASE; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 37 "bison/scanner.l"
+#line 36 "bison/scanner.l"
 { return CHAR; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 38 "bison/scanner.l"
+#line 37 "bison/scanner.l"
 { return CONST; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 39 "bison/scanner.l"
+#line 38 "bison/scanner.l"
 { return CONTINUE; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 40 "bison/scanner.l"
+#line 39 "bison/scanner.l"
 { return DEFAULT; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 41 "bison/scanner.l"
+#line 40 "bison/scanner.l"
 { return DO; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 42 "bison/scanner.l"
+#line 41 "bison/scanner.l"
 { return DOUBLE; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 43 "bison/scanner.l"
+#line 42 "bison/scanner.l"
 { return ELSE; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 44 "bison/scanner.l"
+#line 43 "bison/scanner.l"
 { return ENUM; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 45 "bison/scanner.l"
+#line 44 "bison/scanner.l"
 { return EXTERN; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 46 "bison/scanner.l"
+#line 45 "bison/scanner.l"
 { return FLOAT; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 47 "bison/scanner.l"
+#line 46 "bison/scanner.l"
 { return FOR; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 48 "bison/scanner.l"
+#line 47 "bison/scanner.l"
 { return GOTO; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 49 "bison/scanner.l"
+#line 48 "bison/scanner.l"
 { return IF; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 50 "bison/scanner.l"
+#line 49 "bison/scanner.l"
 { return INLINE; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 51 "bison/scanner.l"
+#line 50 "bison/scanner.l"
 { return INT; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 52 "bison/scanner.l"
+#line 51 "bison/scanner.l"
 { return LONG; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 53 "bison/scanner.l"
+#line 52 "bison/scanner.l"
 { return REGISTER; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 54 "bison/scanner.l"
+#line 53 "bison/scanner.l"
 { return RESTRICT; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 55 "bison/scanner.l"
+#line 54 "bison/scanner.l"
 { return RETURN; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 56 "bison/scanner.l"
+#line 55 "bison/scanner.l"
 { return SHORT; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 57 "bison/scanner.l"
+#line 56 "bison/scanner.l"
 { return SIGNED; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 58 "bison/scanner.l"
+#line 57 "bison/scanner.l"
 { return SIZEOF; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 59 "bison/scanner.l"
+#line 58 "bison/scanner.l"
 { return STATIC; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 60 "bison/scanner.l"
+#line 59 "bison/scanner.l"
 { return STRUCT; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 61 "bison/scanner.l"
+#line 60 "bison/scanner.l"
 { return SWITCH; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 62 "bison/scanner.l"
+#line 61 "bison/scanner.l"
 { return TYPEDEF; }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 63 "bison/scanner.l"
+#line 62 "bison/scanner.l"
 { return UNION; }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 64 "bison/scanner.l"
+#line 63 "bison/scanner.l"
 { return UNSIGNED; }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 65 "bison/scanner.l"
+#line 64 "bison/scanner.l"
 { return VOID; }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 66 "bison/scanner.l"
+#line 65 "bison/scanner.l"
 { return VOLATILE; }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 67 "bison/scanner.l"
+#line 66 "bison/scanner.l"
 { return WHILE; }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 68 "bison/scanner.l"
+#line 67 "bison/scanner.l"
 { return BOOL; }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 69 "bison/scanner.l"
+#line 68 "bison/scanner.l"
 { return COMPLEX; }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 70 "bison/scanner.l"
+#line 69 "bison/scanner.l"
 { return IMAGINARY; }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 71 "bison/scanner.l"
+#line 70 "bison/scanner.l"
 { return FUNC_NAME; }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 73 "bison/scanner.l"
+#line 72 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return check_type(); }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 75 "bison/scanner.l"
+#line 74 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_INT; }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 76 "bison/scanner.l"
+#line 75 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_INT; }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 77 "bison/scanner.l"
+#line 76 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_INT; }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 78 "bison/scanner.l"
+#line 77 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_INT; }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 80 "bison/scanner.l"
+#line 79 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 81 "bison/scanner.l"
+#line 80 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 82 "bison/scanner.l"
+#line 81 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 83 "bison/scanner.l"
+#line 82 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 84 "bison/scanner.l"
+#line 83 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 85 "bison/scanner.l"
+#line 84 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 88 "bison/scanner.l"
+#line 87 "bison/scanner.l"
 { yylval.sval = strdup(yytext); return STR_LITERAL; }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 90 "bison/scanner.l"
+#line 89 "bison/scanner.l"
 { return ELLIPSIS; }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 91 "bison/scanner.l"
+#line 90 "bison/scanner.l"
 { return RSHIFT_ASSIGN; }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 92 "bison/scanner.l"
+#line 91 "bison/scanner.l"
 { return LSHIFT_ASSIGN; }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 93 "bison/scanner.l"
+#line 92 "bison/scanner.l"
 { return ADD_ASSIGN; }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 94 "bison/scanner.l"
+#line 93 "bison/scanner.l"
 { return SUB_ASSIGN; }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 95 "bison/scanner.l"
+#line 94 "bison/scanner.l"
 { return MUL_ASSIGN; }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 96 "bison/scanner.l"
+#line 95 "bison/scanner.l"
 { return DIV_ASSIGN; }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 97 "bison/scanner.l"
+#line 96 "bison/scanner.l"
 { return MOD_ASSIGN; }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 98 "bison/scanner.l"
+#line 97 "bison/scanner.l"
 { return AND_ASSIGN; }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 99 "bison/scanner.l"
+#line 98 "bison/scanner.l"
 { return XOR_ASSIGN; }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 100 "bison/scanner.l"
+#line 99 "bison/scanner.l"
 { return OR_ASSIGN; }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 101 "bison/scanner.l"
+#line 100 "bison/scanner.l"
 { return RSHIFT; }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 102 "bison/scanner.l"
+#line 101 "bison/scanner.l"
 { return LSHIFT; }
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 103 "bison/scanner.l"
+#line 102 "bison/scanner.l"
 { return INCREMENT; }
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 104 "bison/scanner.l"
+#line 103 "bison/scanner.l"
 { return DECREMENT; }
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 105 "bison/scanner.l"
+#line 104 "bison/scanner.l"
 { return ARROW; }
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 106 "bison/scanner.l"
+#line 105 "bison/scanner.l"
 { return AND; }
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 107 "bison/scanner.l"
+#line 106 "bison/scanner.l"
 { return OR; }
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 108 "bison/scanner.l"
+#line 107 "bison/scanner.l"
 { return LEQ; }
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 109 "bison/scanner.l"
+#line 108 "bison/scanner.l"
 { return GEQ; }
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 110 "bison/scanner.l"
+#line 109 "bison/scanner.l"
 { return EQUAL; }
 	YY_BREAK
 case 77:
 YY_RULE_SETUP
-#line 111 "bison/scanner.l"
+#line 110 "bison/scanner.l"
 { return NOT_EQUAL; }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 112 "bison/scanner.l"
+#line 111 "bison/scanner.l"
 { return ';'; }
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 113 "bison/scanner.l"
+#line 112 "bison/scanner.l"
 { return '{'; }
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 114 "bison/scanner.l"
+#line 113 "bison/scanner.l"
 { return '}'; }
 	YY_BREAK
 case 81:
 YY_RULE_SETUP
-#line 115 "bison/scanner.l"
+#line 114 "bison/scanner.l"
 { return ','; }
 	YY_BREAK
 case 82:
 YY_RULE_SETUP
-#line 116 "bison/scanner.l"
+#line 115 "bison/scanner.l"
 { return ':'; }
 	YY_BREAK
 case 83:
 YY_RULE_SETUP
-#line 117 "bison/scanner.l"
+#line 116 "bison/scanner.l"
 { return '='; }
 	YY_BREAK
 case 84:
 YY_RULE_SETUP
-#line 118 "bison/scanner.l"
+#line 117 "bison/scanner.l"
 { return '('; }
 	YY_BREAK
 case 85:
 YY_RULE_SETUP
-#line 119 "bison/scanner.l"
+#line 118 "bison/scanner.l"
 { return ')'; }
 	YY_BREAK
 case 86:
 YY_RULE_SETUP
-#line 120 "bison/scanner.l"
+#line 119 "bison/scanner.l"
 { return '['; }
 	YY_BREAK
 case 87:
 YY_RULE_SETUP
-#line 121 "bison/scanner.l"
+#line 120 "bison/scanner.l"
 { return ']'; }
 	YY_BREAK
 case 88:
 YY_RULE_SETUP
-#line 122 "bison/scanner.l"
+#line 121 "bison/scanner.l"
 { return '.'; }
 	YY_BREAK
 case 89:
 YY_RULE_SETUP
-#line 123 "bison/scanner.l"
+#line 122 "bison/scanner.l"
 { return '&'; }
 	YY_BREAK
 case 90:
 YY_RULE_SETUP
-#line 124 "bison/scanner.l"
+#line 123 "bison/scanner.l"
 { return '!'; }
 	YY_BREAK
 case 91:
 YY_RULE_SETUP
-#line 125 "bison/scanner.l"
+#line 124 "bison/scanner.l"
 { return '~'; }
 	YY_BREAK
 case 92:
 YY_RULE_SETUP
-#line 126 "bison/scanner.l"
+#line 125 "bison/scanner.l"
 { return '-'; }
 	YY_BREAK
 case 93:
 YY_RULE_SETUP
-#line 127 "bison/scanner.l"
+#line 126 "bison/scanner.l"
 { return '+'; }
 	YY_BREAK
 case 94:
 YY_RULE_SETUP
-#line 128 "bison/scanner.l"
+#line 127 "bison/scanner.l"
 { return '*'; }
 	YY_BREAK
 case 95:
 YY_RULE_SETUP
-#line 129 "bison/scanner.l"
+#line 128 "bison/scanner.l"
 { return '/'; }
 	YY_BREAK
 case 96:
 YY_RULE_SETUP
-#line 130 "bison/scanner.l"
+#line 129 "bison/scanner.l"
 { return '%'; }
 	YY_BREAK
 case 97:
 YY_RULE_SETUP
-#line 131 "bison/scanner.l"
+#line 130 "bison/scanner.l"
 { return '<'; }
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
-#line 132 "bison/scanner.l"
+#line 131 "bison/scanner.l"
 { return '>'; }
 	YY_BREAK
 case 99:
 YY_RULE_SETUP
-#line 133 "bison/scanner.l"
+#line 132 "bison/scanner.l"
 { return '^'; }
 	YY_BREAK
 case 100:
 YY_RULE_SETUP
-#line 134 "bison/scanner.l"
+#line 133 "bison/scanner.l"
 { return '|'; }
 	YY_BREAK
 case 101:
 YY_RULE_SETUP
-#line 135 "bison/scanner.l"
+#line 134 "bison/scanner.l"
 { return '?'; }
 	YY_BREAK
 case 102:
 /* rule 102 can match eol */
 YY_RULE_SETUP
-#line 137 "bison/scanner.l"
+#line 136 "bison/scanner.l"
 { yylineno++; }
 	YY_BREAK
 case 103:
 /* rule 103 can match eol */
 YY_RULE_SETUP
-#line 138 "bison/scanner.l"
+#line 137 "bison/scanner.l"
 { /* Consume whitespace */ }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
-#line 139 "bison/scanner.l"
+#line 138 "bison/scanner.l"
 { return 0; }
 	YY_BREAK
 case 104:
 YY_RULE_SETUP
-#line 140 "bison/scanner.l"
+#line 139 "bison/scanner.l"
 { yyerror("Bad character"); }
 	YY_BREAK
 case 105:
 YY_RULE_SETUP
-#line 142 "bison/scanner.l"
+#line 141 "bison/scanner.l"
 ECHO;
 	YY_BREAK
-#line 1550 "lex.yy.c"
+#line 1549 "lex.yy.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2521,7 +2520,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 142 "bison/scanner.l"
+#line 141 "bison/scanner.l"
 
 
 int yywrap() {

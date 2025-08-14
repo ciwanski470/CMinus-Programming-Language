@@ -1,8 +1,10 @@
 /*
-    Implementation of "symbol_table.h"
+    Implementation of "parser_symbols.h"
 */
 
-#include "symbol_table.h"
+#include "parser_symbols.h"
+#include "string_helpers.h"
+#include "error_handling.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,38 +15,24 @@
 extern void yyerror(const char *s);
 
 // Entry in the hash table
-typedef struct sym_entry_t {
+typedef struct sym_entry {
     char *name;
     sym_kind kind;
-    struct sym_entry_t *next;
+    struct sym_entry *next;
 } sym_entry_t;
 
 // Stack of scopes
-typedef struct scope_t {
-    struct sym_entry_t *buckets[HASH_SIZE];
-    struct scope_t *prev;
+typedef struct scope {
+    struct sym_entry *buckets[HASH_SIZE];
+    struct scope *prev;
 } scope_t;
 
-// Uses rolling polynomial hash
-size_t str_hash(const char *str) {
-    unsigned int hash = 0;
-    unsigned int curr_p = 1;
-    for (int i=0; str[i]; i++) {
-        hash += str[i] * curr_p % HASH_SIZE;
-        curr_p = curr_p * P % HASH_SIZE;
-    }
-    return hash;
-}
-
-scope_t *curr_scope = 0;
+static scope_t *curr_scope = 0;
 
 // Enter new scope (public)
 void sym_push_scope(void) {
     scope_t *new_scope = malloc(sizeof(scope_t));
-    if (!new_scope) {
-        perror("Malloc error when initializing new scope in symbol table");
-        exit(1);
-    }
+    check_malloc_error(new_scope, "Malloc error when initializing new scope in symbol table");
     memset(new_scope->buckets, 0, sizeof(new_scope->buckets));
     new_scope->prev = curr_scope;
     curr_scope = new_scope;
@@ -68,27 +56,26 @@ void sym_pop_scope(void) {
     free(old);
 }
 
-void sym_insert(const char *name, sym_kind kind) {
+static void sym_insert(const char *name, sym_kind kind) {
     // Typically if sym_push_scope() is not called before yyparse()
     if (!curr_scope) sym_push_scope();
     
-    char *name_dup = strdup(name);
-    size_t hash = str_hash(name_dup);
+    const char *name_dup = strdup(name);
+    size_t hash = str_hash(name_dup, HASH_SIZE);
 
     // Check if it already exists in this scope
     for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
-        if (strcmp(name_dup, entry->name) == 0) {
-            yyerror("illegal redefinition of a symbol within the same scope");
+        if (strcmp(name_dup, entry->name) == 0 && kind == entry->kind) {
+            yyerror("*** illegal redefinition of a symbol within the same scope");
+            free(name_dup);
             return;
         }
     }
 
     // This identifier does not exist in this scope
     sym_entry_t *new_entry = malloc(sizeof(sym_entry_t));
-    if (!new_entry) {
-        perror("Malloc error when adding new entry to symbol table");
-        exit(1);
-    }
+    check_malloc_error(new_entry, "Malloc error when adding new entry to symbol table");
+
     new_entry->name = name_dup;
     new_entry->kind = kind;
     new_entry->next = curr_scope->buckets[hash];
@@ -104,7 +91,7 @@ void sym_define_enum(const char *name) {
 }
 
 int sym_type(const char *token) {
-    size_t hash = str_hash(token);
+    size_t hash = str_hash(token, HASH_SIZE);
     
     for (scope_t *scope = curr_scope; scope; scope = scope->prev) {
         for (sym_entry_t *entry = scope->buckets[hash]; entry; entry = entry->next) {

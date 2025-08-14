@@ -1,6 +1,7 @@
 /* 
     Handles the symbol table used to differentiate typedefs, enums, and indentifiers
     Manages the scope of these defined types
+    Used only in the lexer and parser
 */
 
 #pragma once

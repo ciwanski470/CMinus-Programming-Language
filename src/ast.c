@@ -674,7 +674,7 @@ decl_specs *make_decl_specs(decl_spec_list *list) {
         switch (curr->kind) {
             case DS_STORAGE_CLASS: {
                 if (specs->storage != SC_NONE) {
-                    fprintf(stderr, "*** Declaration may not have more than one storage class");
+                    fprintf(stderr, "*** declarations may not have more than one storage class");
                 }
                 specs->storage = curr->storage;
                 break;

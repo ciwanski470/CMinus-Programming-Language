@@ -1,6 +1,6 @@
 %{
 #include <stdio.h>
-#include "symbol_table.h"
+#include "parser_symbols.h"
 #include "parser_helpers.h"
 #include "ast.h"
 

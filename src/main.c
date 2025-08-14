@@ -1,6 +1,6 @@
 #include "ast.h"
 #include "ast_printer.h"
-#include "symbol_table.h"
+#include "parser_symbols.h"
 #include "parser_helpers.h"
 #include "parser.h"
 #include <stdio.h>
@@ -10,8 +10,13 @@ extern FILE *yyin;
 extern translation_unit *ast_root;
 extern int yydebug;
 
-int main() {
-    yyin = fopen("example.c", "r");
+int main(int argc, char *argv[]) {
+    if (argc == 1) {
+        perror("No program specified");
+        exit(1);
+    }
+
+    yyin = fopen(argv[1], "r");
     yydebug = 0;
 
     printf("Opened File\n");
@@ -33,7 +38,7 @@ int main() {
     }
 
     // IMPORTANT NOTE: some things are not reversed
-    // Lowkey buggy
+    // Lowkey kinda buggy
     ast_root = reverse_lists(ast_root, 1);
     printf("Reversed lists\n");
     fflush(stdout);

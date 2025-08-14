@@ -4,7 +4,7 @@
 
 #include "parser_helpers.h"
 #include "error_handling.h"
-#include "symbol_table.h"
+#include "parser_symbols.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>

@@ -1,10 +1,9 @@
 %{
 #include <stdio.h>
-#include "symbol_table.h"
+#include "parser_symbols.h"
 #include "parser.h"
 
 extern void yyerror(const char *); // Prints grammar errors
-extern int sym_type(const char *); // Returns symbol type from the symbol table
 
 static int check_type();
 %}
