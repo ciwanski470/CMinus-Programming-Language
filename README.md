@@ -23,6 +23,9 @@ Compile it yourself and then execute main.
 * Backwards compatibility with old K&R C features.
 Namely, the K&R function definition (nobody uses this?) and implicit return type
 * Variable-length arrays (C11 standard says I don't have to (I just don't want to implement this))
+* In the C99 standard, inline is a compiler suggestion and does not always have to be followed.
+This compiler will read the user's suggestion and make the conscious decision to ignore it.
+* Designated initializers are also omitted from this implementation because I said so
 
 ## Technologies Used
 The code is written entirely in C.
