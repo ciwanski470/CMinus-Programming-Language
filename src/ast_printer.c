@@ -325,8 +325,6 @@ static void print_sou_spec(sou_spec *sou) {
 
 static void print_struct_decltrs(struct_decltr_list *decltrs) {
     indents++;
-    printf("Printing struct declarators\n");
-    fflush(stdout);
 
     for (struct_decltr_list *curr = decltrs; curr; curr = curr->next) {
         if (curr->decltr) {
@@ -385,18 +383,12 @@ static void print_init_decltrs(init_decltr *decltrs) {
 static void print_decltr(decltr *dctr) {
     indents++;
 
-    if (dctr->ptr) {
-        ast_write("Pointer:\n");
-        print_pointer(dctr->ptr);
-    }
-
     for (decltr *curr = dctr; curr; curr = curr->next) {
         switch (curr->kind) {
             case DCTR_ARRAY:
                 ast_write("Array Suffix:\n");
                 indents++;
                 ast_write("Static: %d\n", curr->array.is_static);
-                ast_write("Has Asterisk: %d\n", curr->array.has_asterisk);
                 if (curr->array.quals) {
                     ast_write("Type Qualifiers:\n");
                     print_type_qual_list(curr->array.quals);
@@ -422,6 +414,12 @@ static void print_decltr(decltr *dctr) {
                 break;
             case DCTR_EMPTY:
                 ast_write("Empty\n");
+        }
+        if (curr->ptr) {
+            indents++;
+            ast_write("Pointer:\n");
+            print_pointer(curr->ptr);
+            indents--;
         }
     }
 

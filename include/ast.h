@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "helper_enums.h"
 #include <stdbool.h>
 
 /*
@@ -187,32 +188,6 @@ typedef enum {
     DS_FUNC_SPEC
 } decl_spec_kind;
 
-/* --- Helper enums --- */
-
-typedef enum {
-    SC_NONE,
-    SC_TYPEDEF,
-    SC_EXTERN,
-    SC_STATIC,
-    SC_AUTO,
-    SC_REGISTER
-} storage_class;
-
-typedef enum {
-    FS_INLINE // Only inline in C99
-} func_spec;
-
-typedef enum {
-    TQ_CONST,
-    TQ_RESTRICT,
-    TQ_VOLATILE
-} type_qual;
-
-typedef enum {
-    PF_NONE,
-    PF_TYPE_LIST
-} param_form;
-
 
 /*
     --------- Structures ---------
@@ -259,6 +234,8 @@ typedef struct expr {
     // Both are used in binary expressions, and only left for unary
     struct expr *left;
     struct expr *right;
+
+    bool constant; // Certain expressions must be constant
 
     // Leaves or additional
     union {
@@ -378,7 +355,6 @@ typedef struct decltr {
 
         struct {
             bool is_static;
-            bool has_asterisk;
             struct type_qual_list *quals;
             struct expr *size;
         } array;
@@ -591,7 +567,7 @@ pointer *make_pointer(type_qual_list *quals, pointer *next);
 
 decltr *make_empty_decltr(pointer *ptr); // For abstract
 decltr *make_id_decltr(char *id);
-decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk);
+decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static);
 decltr *make_decltr_proto_suffix(decltr *prev, param_list *params);
 void add_pointer(pointer *ptr, decltr *decltr);
 

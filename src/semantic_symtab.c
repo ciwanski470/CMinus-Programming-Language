@@ -34,8 +34,29 @@ void sem_push_scope(void) {
     curr_scope = new_scope;
 }
 
+static void free_sem_type(sem_type_t *type);
+static void free_symbol(sem_symbol_t *sym);
+
+static void free_sem_type(sem_type_t *type) {
+    if (!type) return;
+
+    if (type->kind == ST_STRUCT || type->kind == ST_UNION) {
+        for (sem_struct_decls_t *decl = type->sou_decls; decl;) {
+            free_symbol(decl->sym);
+            sem_struct_decls_t *next = decl->next;
+            free(decl);
+            decl = next;
+        }
+    }
+
+    free(type);
+}
+
 static void free_symbol(sem_symbol_t *sym) {
-    // Unfilled
+    if (!sym) return;
+
+    free(sym->name);
+    free_sem_type(sym->type);
 }
 
 void sem_pop_scope(void) {
@@ -222,12 +243,4 @@ sem_symbol_t *sem_lookup_typedef(const char *name) {
 
 sem_symbol_t *sem_lookup_label(const char *name) {
     return lookup_symbol(name, SEM_NS_LABEL);
-}
-
-bool types_equal(sem_type_t *a, sem_type_t *b) {
-    // Unfilled
-}
-
-parse_req types_parsable(sem_type_t *a, sem_type_t *b) {
-    // Unfilled
 }

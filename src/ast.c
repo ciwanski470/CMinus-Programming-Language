@@ -18,7 +18,7 @@ constant *make_constant(const_kind kind, char *value) {
     check_malloc_error(new_const, "Malloc error when creating new constant value");
 
     new_const->kind = kind;
-    new_const->value = strdup(value);
+    new_const->value = value ? strdup(value) : 0;
 
     return new_const;
 }
@@ -40,6 +40,7 @@ expr *make_expr(expr_kind kind, expr *left, expr *right) {
     new_expr->kind = kind;
     new_expr->left = left;
     new_expr->right = right;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -48,7 +49,8 @@ expr *make_id_expr(char *id) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_ID;
-    new_expr->extra.id = strdup(id);
+    new_expr->extra.id = id ? strdup(id) : 0;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -58,6 +60,7 @@ expr *make_const_expr(constant *const_val) {
 
     new_expr->kind = EXPR_CONST;
     new_expr->extra.const_val = const_val;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -66,7 +69,8 @@ expr *make_string_expr(char *str) {
     expr *new_expr = malloc_expr();
 
     new_expr->kind = EXPR_STR_LITERAL;
-    new_expr->extra.str_val = strdup(str);
+    new_expr->extra.str_val = str ? strdup(str) : 0;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -76,7 +80,8 @@ expr *make_member_access_expr(expr_kind kind, expr *item, char *id) {
 
     new_expr->kind = kind;
     new_expr->left = item;
-    new_expr->extra.id = strdup(id);
+    new_expr->extra.id = id ? strdup(id) : 0;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -87,6 +92,7 @@ expr *make_init_expr(type_name *type, init_list *init) {
     new_expr->kind = EXPR_INIT_LIST;
     new_expr->extra.type = type;
     new_expr->extra.init = init;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -96,6 +102,7 @@ expr *make_sizeof_expr(type_name *type) {
 
     new_expr->kind = EXPR_SIZEOF_TYPE;
     new_expr->extra.type = type;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -106,6 +113,7 @@ expr *make_cast_expr(type_name *type, expr* val) {
     new_expr->kind = EXPR_CAST;
     new_expr->left = val;
     new_expr->extra.type = type;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -117,6 +125,7 @@ expr *make_ternary_expr(expr *conditional, expr *first, expr *second) {
     new_expr->left = first;
     new_expr->right = second;
     new_expr->extra.conditional = conditional;
+    new_expr->constant = false;
 
     return new_expr;
 }
@@ -153,7 +162,7 @@ sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_list *decls) {
     check_malloc_error(new_sou_spec, "Malloc error when creating new sou specifier");
 
     new_sou_spec->kind = kind;
-    new_sou_spec->name = strdup(name);
+    new_sou_spec->name = name ? strdup(name) : 0;
     new_sou_spec->decls = decls;
 
     return new_sou_spec;
@@ -205,7 +214,7 @@ enum_spec *make_enum_spec(char *name, enumerator_list *enums) {
     enum_spec *new_enum_spec = malloc(sizeof(enum_spec));
     check_malloc_error(new_enum_spec, "Malloc error when creating new enum specifier");
 
-    new_enum_spec->name = strdup(name);
+    new_enum_spec->name = name ? strdup(name) : 0;
     new_enum_spec->enum_list = enums;
 
     return new_enum_spec;
@@ -215,7 +224,7 @@ enumerator_list *make_enum_list(char *name, expr *val) {
     enumerator_list *new_enum_list = malloc(sizeof(enumerator_list));
     check_malloc_error(new_enum_list, "Malloc error when creating new enum list");
 
-    new_enum_list->name = strdup(name);
+    new_enum_list->name = name ? strdup(name) : 0;
     new_enum_list->const_val = val;
     
     return new_enum_list;
@@ -254,17 +263,16 @@ decltr *make_id_decltr(char *id) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_ID;
-    new_decltr->id = strdup(id);
+    new_decltr->id = id ? strdup(id) : 0;
 
     return new_decltr;
 }
 
-decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static, bool has_asterisk) {
+decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static) {
     decltr *new_decltr = malloc_decltr();
 
     new_decltr->kind = DCTR_ARRAY;
     new_decltr->next = prev;
-    new_decltr->array.has_asterisk = has_asterisk;
     new_decltr->array.is_static = is_static;
     new_decltr->array.quals = quals;
     new_decltr->array.size = size;
@@ -346,7 +354,7 @@ designation *make_member_designator(char *member) {
     check_malloc_error(new_designation, "Malloc error when creating new designation");
 
     new_designation->kind = DSG_MEMBER;
-    new_designation->member = strdup(member);
+    new_designation->member = member ? strdup(member) : 0;
 
     return new_designation;
 }
@@ -458,7 +466,7 @@ type_spec *make_typedef_type_spec(char *name) {
     type_spec *new_type_spec = malloc_type_spec();
 
     new_type_spec->kind = TS_TYPEDEF;
-    new_type_spec->type_name = strdup(name);
+    new_type_spec->type_name = name ? strdup(name) : 0;
 
     return new_type_spec;
 }
@@ -533,7 +541,7 @@ stmt *make_labeled_stmt(char *label, stmt *next) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_LABEL;
-    new_stmt->label_stmt.label = strdup(label);
+    new_stmt->label_stmt.label = label ? strdup(label) : 0;
     new_stmt->label_stmt.next = next;
 
     return new_stmt;
@@ -562,7 +570,7 @@ stmt *make_goto_stmt(char *label) {
     stmt *new_stmt = malloc_stmt();
 
     new_stmt->kind = STMT_GOTO;
-    new_stmt->goto_stmt.label = strdup(label);
+    new_stmt->goto_stmt.label = label ? strdup(label) : 0;
 
     return new_stmt;
 }
@@ -615,6 +623,7 @@ void add_block_item(block_list *prev, block_list *curr) {
 
 func_def *make_func_def(decl_specs *specs, decltr *decltr, stmt *body) {
     func_def *new_func = malloc(sizeof(func_def));
+    check_malloc_error(new_func, "Malloc error when creating new function definition");
 
     new_func->specs = specs;
     new_func->decltr = decltr;

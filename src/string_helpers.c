@@ -15,8 +15,8 @@
 
 size_t str_hash(const char *str, const int mod) {
     size_t hash = FNV_OFFSET;
-    for (char *c = str; c; c++) {
-        hash ^= *c;
+    for (char c; (c = *str); str++) {
+        hash ^= c;
         hash *= FNV_PRIME;
     }
     return hash % mod;

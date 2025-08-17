@@ -6,9 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern void yyerror(const char *s);
+
 void check_malloc_error(void *ptr, char *message) {
     if (!ptr) {
         perror(message);
         exit(1);
     }
 }
+
+void push_error(const char *message) {
+    yyerror(message);
+}
+

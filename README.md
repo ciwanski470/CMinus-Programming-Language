@@ -13,11 +13,16 @@ I dunno man just download the repo and compile it yourself if you wanna use it f
 Compile it yourself and then execute main.
 
 ## Features
-1. Properly lexes the given program, consuming comments
-2. Generates an AST
-3. Prints the AST to an output file called "output.ast" in an Indented Tree (or a similar) format
-4. Segmentation Fault
-5. That's all I did so far
+* Properly lexes the given program, consuming comments
+* Generates an AST
+* Prints the AST to an output file called "output.ast" in an Indented Tree (or a similar) format
+* Segmentation Fault
+* That's all I did so far
+
+## Features not available in this implementation
+* Backwards compatibility with old K&R C features.
+Namely, the K&R function definition (nobody uses this?) and implicit return type
+* Variable-length arrays (C11 standard says I don't have to (I just don't want to implement this))
 
 ## Technologies Used
 The code is written entirely in C.

@@ -1,4 +1,3 @@
-
 typedef struct list {
     int val;
     struct list *next;
@@ -7,7 +6,13 @@ typedef struct list {
 list *reverse_list(list *curr, int is_first) {
     list *new_head = (curr->next) ? reverse_list(curr->next, 0) : curr;
 
-    int *(*f[8])(int);
+    int (*(*f[8])(int, double))[8];
+
+    int *a[8];
+
+    struct a {
+        int b;
+    } c;
 
     /*
     if (curr->next) {

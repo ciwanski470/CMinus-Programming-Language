@@ -293,7 +293,7 @@ expression
 	;
 
 constant_expression
-	: conditional_expression                { $$ = $1; }
+	: conditional_expression                { $$ = $1; $$->constant = 1; }
 	;
 
 declaration
@@ -421,6 +421,8 @@ function_specifier
 	: INLINE    { $$ = FS_INLINE; }
 	;
 
+// For some reason, the pointer object gets attached to the leftmost direct_declarator
+// Should be attached to the rightmost suffix within its parenthesis grouping
 declarator
 	: pointer direct_declarator { add_pointer($1, $2); $$ = $2; }
 	| direct_declarator         { $$ = $1; }
@@ -430,14 +432,12 @@ declarator
 direct_declarator
 	: IDENTIFIER                                                                    { $$ = make_id_decltr($1); free($1); }     
 	| '(' declarator ')'                                                            { $$ = $2; }
-	| direct_declarator '[' type_qualifier_list assignment_expression ']'           { $$ = make_decltr_array_suffix($1, $3, $4, 0, 0); }
-	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0, 0, 0); }
-	| direct_declarator '[' assignment_expression ']'                               { $$ = make_decltr_array_suffix($1, 0, $3, 0, 0); }
-	| direct_declarator '[' STATIC type_qualifier_list assignment_expression ']'    { $$ = make_decltr_array_suffix($1, $4, $5, 1, 0); }
-	| direct_declarator '[' type_qualifier_list STATIC assignment_expression ']'    { $$ = make_decltr_array_suffix($1, $3, $5, 1, 0); }
-	| direct_declarator '[' type_qualifier_list '*' ']'                             { $$ = make_decltr_array_suffix($1, $3, 0, 0, 0); }
-	| direct_declarator '[' '*' ']'                                                 { $$ = make_decltr_array_suffix($1, 0, 0, 0, 1); }
-	| direct_declarator '[' ']'                                                     { $$ = make_decltr_array_suffix($1, 0, 0, 0, 0); }
+	| direct_declarator '[' type_qualifier_list constant_expression ']'             { $$ = make_decltr_array_suffix($1, $3, $4, 0); }
+	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0, 0); }
+	| direct_declarator '[' constant_expression ']'                                 { $$ = make_decltr_array_suffix($1, 0, $3, 0); }
+	| direct_declarator '[' STATIC type_qualifier_list constant_expression ']'      { $$ = make_decltr_array_suffix($1, $4, $5, 1); }
+	| direct_declarator '[' type_qualifier_list STATIC constant_expression ']'      { $$ = make_decltr_array_suffix($1, $3, $5, 1); }
+	| direct_declarator '[' ']'                                                     { $$ = make_decltr_array_suffix($1, 0, 0, 0); }
 	| direct_declarator '(' parameter_type_list ')'                                 { $$ = make_decltr_proto_suffix($1, $3); }
 	| direct_declarator '(' ')'                                                     { $$ = make_decltr_proto_suffix($1, 0); }
 	;
@@ -484,12 +484,10 @@ abstract_declarator
 
 direct_abstract_declarator
 	: '(' abstract_declarator ')'                               { $$ = $2; }
-	| '[' ']'                                                   { $$ = make_decltr_array_suffix(0, 0, 0, 0, 0); }
-	| '[' assignment_expression ']'                             { $$ = make_decltr_array_suffix(0, 0, $2, 0, 0); }
-	| direct_abstract_declarator '[' ']'                        { $$ = make_decltr_array_suffix($1, 0, 0, 0, 0); }
-	| direct_abstract_declarator '[' assignment_expression ']'  { $$ = make_decltr_array_suffix($1, 0, $3, 0, 0); }
-	| '[' '*' ']'                                               { $$ = make_decltr_array_suffix(0, 0, 0, 0, 1); }
-	| direct_abstract_declarator '[' '*' ']'                    { $$ = make_decltr_array_suffix($1, 0, 0, 0, 1); }
+	| '[' ']'                                                   { $$ = make_decltr_array_suffix(0, 0, 0, 0); }
+	| '[' constant_expression ']'                               { $$ = make_decltr_array_suffix(0, 0, $2, 0); }
+	| direct_abstract_declarator '[' ']'                        { $$ = make_decltr_array_suffix($1, 0, 0, 0); }
+	| direct_abstract_declarator '[' constant_expression ']'    { $$ = make_decltr_array_suffix($1, 0, $3, 0); }
 	| '(' ')'                                                   { $$ = make_decltr_proto_suffix(0, 0); }
 	| '(' parameter_type_list ')'                               { $$ = make_decltr_proto_suffix(0, $2); }
 	| direct_abstract_declarator '(' ')'                        { $$ = make_decltr_proto_suffix($1, 0); }

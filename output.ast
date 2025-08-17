@@ -17,9 +17,9 @@ Declaration:
                             Struct "list"
                     Declarators:
                         Declarator:
-                            Pointer:
-                                *Ptr
                             Identifier: "next"
+                                Pointer:
+                                    *Ptr
                         Bit field: None
     Declarator-Initializer List:
         Declarator:
@@ -40,15 +40,17 @@ Function definition:
                         Type Specifiers:
                             Typedef: "list"
                     Parameter Declarator:
-                        Pointer:
-                            *Ptr
                         Identifier: "curr"
+                            Pointer:
+                                *Ptr
                 Declaration:
                     Specifiers:
                         Type Specifiers:
                             int
                     Parameter Declarator:
                         Identifier: "is_first"
+            Pointer:
+                *Ptr
     Body:
         Declaration:
             Specifiers:
@@ -56,9 +58,9 @@ Function definition:
                     Typedef: "list"
             Declarator-Initializer List:
                 Declarator:
-                    Pointer:
-                        *Ptr
                     Identifier: "new_head"
+                        Pointer:
+                            *Ptr
                 Initializer:
                     Ternary Expression
                     Condition:
@@ -90,9 +92,10 @@ Function definition:
                     Identifier: "f"
                     Array Suffix:
                         Static: 0
-                        Has Asterisk: 0
                         Size:
                             Constant: "8"
+                        Pointer:
+                            *Ptr
                     Function Suffix:
                         Has ellipsis: 0
                         Parameters:
@@ -100,5 +103,45 @@ Function definition:
                                 Specifiers:
                                     Type Specifiers:
                                         int
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        double
+                        Pointer:
+                            *Ptr
+                    Array Suffix:
+                        Static: 0
+                        Size:
+                            Constant: "8"
+                Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "a"
+                    Array Suffix:
+                        Static: 0
+                        Size:
+                            Constant: "8"
+                        Pointer:
+                            *Ptr
+                Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    Struct "a":
+                        Declaration:
+                            Specifiers:
+                                Type Specifiers:
+                                    int
+                            Declarators:
+                                Declarator:
+                                    Identifier: "b"
+                                Bit field: None
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "c"
                 Initializer: None
 
