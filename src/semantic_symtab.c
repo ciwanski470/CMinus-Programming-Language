@@ -5,13 +5,13 @@
 #include "semantic_symtab.h"
 #include "string_helpers.h"
 #include "error_handling.h"
+#include "ast.h"
+#include "optimization.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 
 #define HASH_SIZE 127
-
-extern void yyerror(const char *s);
 
 typedef struct sym_entry {
     bool defined;
@@ -27,36 +27,39 @@ typedef struct scope {
 static scope_t *curr_scope = 0;
 
 void sem_push_scope(void) {
-    scope_t *new_scope = malloc(sizeof(scope_t));
-    check_malloc_error(new_scope, "Malloc error when creating new scope in symbol table");
+    scope_t *new_scope = calloc(1, sizeof(scope_t));
+    check_alloc_error(new_scope, "Alloc error when creating new scope in symbol table");
     memset(new_scope->buckets, 0, sizeof(new_scope->buckets));
     new_scope->prev = curr_scope;
     curr_scope = new_scope;
 }
 
-static void free_sem_type(sem_type_t *type);
-static void free_symbol(sem_symbol_t *sym);
+static void free_sem_type(sem_type_t **ptype);
+static void free_symbol(sem_symbol_t **psym);
 
-static void free_sem_type(sem_type_t *type) {
-    if (!type) return;
+static void free_sem_type(sem_type_t **ptype) {
+    if (!ptype || !*ptype) return;
 
-    if (type->kind == ST_STRUCT || type->kind == ST_UNION) {
-        for (sem_struct_decls_t *decl = type->sou_decls; decl;) {
-            free_symbol(decl->sym);
-            sem_struct_decls_t *next = decl->next;
-            free(decl);
-            decl = next;
-        }
+    if ((*ptype)->kind == ST_STRUCT || (*ptype)->kind == ST_UNION) {
+        // Unfilled
+    } else if ((*ptype)->kind == ST_FUNC) {
+        // Unfilled
+    } else if ((*ptype)->kind == ST_ARRAY) {
+        // Unfilled
     }
 
-    free(type);
+    free(*ptype);
+    *ptype = 0;
 }
 
-static void free_symbol(sem_symbol_t *sym) {
-    if (!sym) return;
+static void free_symbol(sem_symbol_t **psym) {
+    if (!psym || !*psym) return;
 
-    free(sym->name);
-    free_sem_type(sym->type);
+    free((*psym)->name);
+    free_sem_type(&(*psym)->type);
+
+    free((*psym));
+    *psym = 0;
 }
 
 void sem_pop_scope(void) {
@@ -66,7 +69,7 @@ void sem_pop_scope(void) {
         sym_entry_t *entry = curr_scope->buckets[i];
         while (entry) {
             sym_entry_t *next = entry->next;
-            free_symbol(entry->sym);
+            free_symbol(&entry->sym);
             free(entry);
             entry = next;
         }
@@ -86,8 +89,8 @@ static sem_symbol_t *make_sem_symbol(
     bool is_definition,
     bool is_tentative
 ) {
-    sem_symbol_t *new_sym = malloc(sizeof(sem_symbol_t));
-    check_malloc_error(new_sym, "Malloc error creating new symbol in symbol table");
+    sem_symbol_t *new_sym = calloc(1, sizeof(sem_symbol_t));
+    check_alloc_error(new_sym, "Alloc error creating new symbol in symbol table");
 
     new_sym->name = name;
     new_sym->enum_val = enum_val;
@@ -128,13 +131,13 @@ static bool sem_insert_symbol(sem_symbol_t *sym) {
 
     for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
         if (!symbols_compatible(sym, entry->sym)) {
-            yyerror("*** illegal redefinition of a symbol within the same scope");
+            push_error("*** illegal redefinition of a symbol within the same scope");
             return false;
         }
     }
 
-    sym_entry_t *new_entry = malloc(sizeof(sym_entry_t));
-    check_malloc_error(new_entry, "Malloc error when adding new entry to symbol table");
+    sym_entry_t *new_entry = calloc(1, sizeof(sym_entry_t));
+    check_alloc_error(new_entry, "Alloc error when adding new entry to symbol table");
 
     new_entry->sym = sym;
     new_entry->next = curr_scope->buckets[hash];

@@ -26,6 +26,9 @@ Namely, the K&R function definition (nobody uses this?) and implicit return type
 * In the C99 standard, inline is a compiler suggestion and does not always have to be followed.
 This compiler will read the user's suggestion and make the conscious decision to ignore it.
 * Designated initializers are also omitted from this implementation because I said so
+* The 'static' keyword also may not be used in array parameter declarations for the same reason as above
+* _Complex and _Imaginary type specifiers are not allowed (will parse, but will then throw an error)
+* Flexible array members are not allowed because no
 
 ## Technologies Used
 The code is written entirely in C.

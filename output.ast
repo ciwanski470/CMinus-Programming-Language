@@ -29,6 +29,26 @@ Declaration:
 Function definition:
     Specifiers:
         Type Specifiers:
+            void
+    Declarator:
+        Identifier: "func"
+        Function Suffix:
+            Has ellipsis: 0
+            Parameters:
+                Declaration:
+                    Specifiers:
+                        Type Specifiers:
+                            int
+                    Parameter Declarator:
+                        Identifier: "a"
+                        Array Suffix:
+                            Size:
+                                Constant: "8"
+    Body:
+
+Function definition:
+    Specifiers:
+        Type Specifiers:
             Typedef: "list"
     Declarator:
         Identifier: "reverse_list"
@@ -91,7 +111,6 @@ Function definition:
                 Declarator:
                     Identifier: "f"
                     Array Suffix:
-                        Static: 0
                         Size:
                             Constant: "8"
                         Pointer:
@@ -110,7 +129,6 @@ Function definition:
                         Pointer:
                             *Ptr
                     Array Suffix:
-                        Static: 0
                         Size:
                             Constant: "8"
                 Initializer: None
@@ -122,7 +140,6 @@ Function definition:
                 Declarator:
                     Identifier: "a"
                     Array Suffix:
-                        Static: 0
                         Size:
                             Constant: "8"
                         Pointer:
@@ -144,4 +161,24 @@ Function definition:
                 Declarator:
                     Identifier: "c"
                 Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "b"
+                    Array Suffix:
+                        Size:
+                            Constant: "4"
+                Initializer: None
+        Statement:
+            Expression:
+                Function Call
+                Function:
+                    Identifier: "func"
+                Arguments:
+                    Argument List:
+                        Expression:
+                            Identifier: "b"
 

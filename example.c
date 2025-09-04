@@ -3,6 +3,10 @@ typedef struct list {
     struct list *next;
 } list;
 
+void func(int a[8]) {
+
+}
+
 list *reverse_list(list *curr, int is_first) {
     list *new_head = (curr->next) ? reverse_list(curr->next, 0) : curr;
 
@@ -10,32 +14,10 @@ list *reverse_list(list *curr, int is_first) {
 
     int *a[8];
 
-    struct a {
-        int b;
-    } c;
+    int b[4];
+    func(b);
 
-    /*
-    if (curr->next) {
-        curr->next->next = curr;
-    }
-    if (is_first) {
-        curr->next = 0;
-    }
-    */
+    typedef int (*(*some_type)(int, int))[8];
 
-    //return new_head;
+    some_type var[10];
 }
-
-
-/*
-int main(void) {
-    int a = 5;
-}
-*/
-
-/*
-int main(void) {
-    int b = 2;
-    int a = (5 == 3) ? main() : b;
-}
-*/

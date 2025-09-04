@@ -14,6 +14,7 @@ typedef enum {
 } storage_class;
 
 typedef enum {
+    FS_NONE,
     FS_INLINE // Only inline in C99
 } func_spec;
 

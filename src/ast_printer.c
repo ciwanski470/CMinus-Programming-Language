@@ -189,22 +189,16 @@ static void print_decl_specs(decl_specs *specs) {
         case SC_NONE:;
     }
 
+    switch (specs->func_spec) {
+        case FS_INLINE:
+            ast_write("Function Specifier: inline\n");
+            break;
+        case FS_NONE:;
+    }
+
     if (specs->type_quals) {
         ast_write("Type Qualifiers:\n");
         print_type_qual_list(specs->type_quals);
-    }
-
-    if (specs->func_specs) {
-        ast_write("Function Specifiers:\n");
-        indents++;
-        for (func_spec_list *curr = specs->func_specs; curr; curr = curr->next) {
-            switch (curr->spec) {
-                case FS_INLINE:
-                    ast_write("inline\n");
-                    break;
-            }
-        }
-        indents--;
     }
 
     if (specs->type_specs) {
@@ -388,7 +382,6 @@ static void print_decltr(decltr *dctr) {
             case DCTR_ARRAY:
                 ast_write("Array Suffix:\n");
                 indents++;
-                ast_write("Static: %d\n", curr->array.is_static);
                 if (curr->array.quals) {
                     ast_write("Type Qualifiers:\n");
                     print_type_qual_list(curr->array.quals);
@@ -401,7 +394,7 @@ static void print_decltr(decltr *dctr) {
                 }
                 indents--;
                 break;
-            case DCTR_FUNC_PROTO:
+            case DCTR_FUNC:
                 ast_write("Function Suffix:\n");
                 indents++;
                 ast_write("Has ellipsis: %d\n", curr->func.has_ellipsis);

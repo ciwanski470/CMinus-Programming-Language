@@ -209,7 +209,7 @@ static decltr *reverse_decltr(decltr *node, bool is_head) {
         case DCTR_ARRAY:
             reverse_in_expr(node->array.size);
             break;
-        case DCTR_FUNC_PROTO:
+        case DCTR_FUNC:
             node->func.params = reverse_param_list(node->func.params, true);
             break;
         default:;

@@ -293,7 +293,7 @@ expression
 	;
 
 constant_expression
-	: conditional_expression                { $$ = $1; $$->constant = 1; }
+	: conditional_expression                { $$ = $1; }
 	;
 
 declaration
@@ -432,12 +432,10 @@ declarator
 direct_declarator
 	: IDENTIFIER                                                                    { $$ = make_id_decltr($1); free($1); }     
 	| '(' declarator ')'                                                            { $$ = $2; }
-	| direct_declarator '[' type_qualifier_list constant_expression ']'             { $$ = make_decltr_array_suffix($1, $3, $4, 0); }
-	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0, 0); }
-	| direct_declarator '[' constant_expression ']'                                 { $$ = make_decltr_array_suffix($1, 0, $3, 0); }
-	| direct_declarator '[' STATIC type_qualifier_list constant_expression ']'      { $$ = make_decltr_array_suffix($1, $4, $5, 1); }
-	| direct_declarator '[' type_qualifier_list STATIC constant_expression ']'      { $$ = make_decltr_array_suffix($1, $3, $5, 1); }
-	| direct_declarator '[' ']'                                                     { $$ = make_decltr_array_suffix($1, 0, 0, 0); }
+	| direct_declarator '[' type_qualifier_list constant_expression ']'             { $$ = make_decltr_array_suffix($1, $3, $4); }
+	| direct_declarator '[' type_qualifier_list ']'                                 { $$ = make_decltr_array_suffix($1, $3, 0); }
+	| direct_declarator '[' constant_expression ']'                                 { $$ = make_decltr_array_suffix($1, 0, $3); }
+	| direct_declarator '[' ']'                                                     { $$ = make_decltr_array_suffix($1, 0, 0); }
 	| direct_declarator '(' parameter_type_list ')'                                 { $$ = make_decltr_proto_suffix($1, $3); }
 	| direct_declarator '(' ')'                                                     { $$ = make_decltr_proto_suffix($1, 0); }
 	;
@@ -484,10 +482,10 @@ abstract_declarator
 
 direct_abstract_declarator
 	: '(' abstract_declarator ')'                               { $$ = $2; }
-	| '[' ']'                                                   { $$ = make_decltr_array_suffix(0, 0, 0, 0); }
-	| '[' constant_expression ']'                               { $$ = make_decltr_array_suffix(0, 0, $2, 0); }
-	| direct_abstract_declarator '[' ']'                        { $$ = make_decltr_array_suffix($1, 0, 0, 0); }
-	| direct_abstract_declarator '[' constant_expression ']'    { $$ = make_decltr_array_suffix($1, 0, $3, 0); }
+	| '[' ']'                                                   { $$ = make_decltr_array_suffix(0, 0, 0); }
+	| '[' constant_expression ']'                               { $$ = make_decltr_array_suffix(0, 0, $2); }
+	| direct_abstract_declarator '[' ']'                        { $$ = make_decltr_array_suffix($1, 0, 0); }
+	| direct_abstract_declarator '[' constant_expression ']'    { $$ = make_decltr_array_suffix($1, 0, $3); }
 	| '(' ')'                                                   { $$ = make_decltr_proto_suffix(0, 0); }
 	| '(' parameter_type_list ')'                               { $$ = make_decltr_proto_suffix(0, $2); }
 	| direct_abstract_declarator '(' ')'                        { $$ = make_decltr_proto_suffix($1, 0); }

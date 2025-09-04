@@ -8,7 +8,14 @@
 #pragma once
 
 #include "helper_enums.h"
+#include "ast.h"
 #include <stdbool.h>
+#include <stdlib.h>
+
+// Bitmasks for encoding what qualifiers a type has
+#define TQ_CONST_MASK 1
+#define TQ_RESTRICT_MASK 2
+#define TQ_VOLATILE_MASK 4
 
 typedef enum {
     SEM_NS_ID,
@@ -31,11 +38,16 @@ typedef enum {
 } scope_kind;
 
 /*
-    NOTE: Types are arranged by how you compare them
+    NOTE: Types are arranged by how you compare them (REORDERING MAY BE RISKY)
     ST_INT to ST_CHAR are compared by signedness
     ST_VOID to ST_IMAGINARY are compared only by the type enum
     ST_FUNC is compared by return type and parameter type
+    ST_ARRAY is compared by element type, size, and qualifiers
     ST_STRUCT and ST_UNION are compared the same way
+
+    Order and grouping is strict and is taken advantage of in some functions
+
+    Enums are handled as being equivalent to "unsigned short"
 */
 typedef enum {
     ST_INT,
@@ -55,8 +67,11 @@ typedef enum {
     ST_LDCOMPLEX,
     ST_LDIMAGINARY,
     ST_FUNC,
+    ST_ARRAY,
     ST_STRUCT,
-    ST_UNION
+    ST_UNION,
+    ST_TYPEDEF,
+    ST_POINTER
 } sem_type_kind;
 
 typedef enum {
@@ -68,16 +83,16 @@ typedef enum {
 struct sem_symbol;
 struct sem_type;
 struct sem_type_list;
-struct sem_struct_decls;
-
-extern struct expr;
+struct sem_sou_info;
+struct sem_member;
 
 typedef struct sem_symbol {
     char *name;
-    int enum_val; // For enums
+    int enum_val; // For enum constants
 
     sem_namespace ns;
     storage_class sc;
+    func_spec fs;
     sem_linkage linkage;
     struct sem_type *type;
 
@@ -85,21 +100,28 @@ typedef struct sem_symbol {
     bool is_tentative;
 } sem_symbol_t;
 
-// ts is not complete
 typedef struct sem_type {
     sem_type_kind kind;
+    unsigned short quals;
     bool is_signed;
+
     union {
-        struct sem_struct_decls *sou_decls;
+        struct sem_sou_info *sou_info;
+
+        struct sem_type *ptr_target;
+
+        struct sem_type *typedef_type;
 
         struct {
-            struct sem_type *ret_type; // Obtained from declarator or type specifier
-            struct sem_type_list *list;
+            struct sem_type *return_type;
+            struct sem_type_list *params;
+            bool variadic;
         } func_info;
 
         struct {
             struct sem_type *element_type;
-            unsigned int size; // Obtained from constant folding
+            size_t size; // Obtained from constant folding
+            bool incomplete;
         } arr_info;
     };
 } sem_type_t;
@@ -109,10 +131,37 @@ typedef struct sem_type_list {
     struct sem_type_list *next;
 } sem_type_list_t;
 
-typedef struct sem_struct_decls {
-    struct sem_symbol *sym;
-    struct sem_struct_decls *next;
-} sem_struct_decls_t;
+typedef struct sem_sou_info {
+    struct sem_member *members;
+    size_t size; // in bytes
+    size_t alignment; // in bytes
+    bool complete;
+} sem_sou_info_t;
+
+typedef struct sem_member {
+    char *name;
+    struct sem_type *type;
+    bool has_bitfield;
+    int bit_width;
+    size_t offset_bytes; // byte offset from start of struct
+    int bit_offset_in_unit; // bit offset within current storage unit
+
+    struct sem_member *next;
+} sem_member_t;
+
+// Type creation
+
+sem_type_t *alloc_sem_type(void);
+sem_type_list_t *alloc_sem_type_list(sem_type_t *t);
+
+sem_type_t *make_primitive_type(sem_type_kind kind, bool is_signed, unsigned short quals);
+sem_type_t *make_pointer_type(unsigned short quals);
+sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomplete);
+sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params, bool variadic);
+sem_type_t *make_enum_type(enum_spec *enums);
+sem_type_t *make_sou_type(sou_spec *sou);
+
+unsigned short make_qual_mask(type_qual_list *quals);
 
 // Type comparison
 

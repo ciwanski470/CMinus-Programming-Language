@@ -12,8 +12,6 @@
 #define HASH_SIZE 127
 #define P 67 // For hash function
 
-extern void yyerror(const char *s);
-
 // Entry in the hash table
 typedef struct sym_entry {
     char *name;
@@ -31,8 +29,8 @@ static scope_t *curr_scope = 0;
 
 // Enter new scope (public)
 void sym_push_scope(void) {
-    scope_t *new_scope = malloc(sizeof(scope_t));
-    check_malloc_error(new_scope, "Malloc error when initializing new scope in symbol table");
+    scope_t *new_scope = calloc(1, sizeof(scope_t));
+    check_alloc_error(new_scope, "Alloc error when initializing new scope in symbol table");
     memset(new_scope->buckets, 0, sizeof(new_scope->buckets));
     new_scope->prev = curr_scope;
     curr_scope = new_scope;
@@ -57,7 +55,7 @@ void sym_pop_scope(void) {
 }
 
 static void sym_insert(const char *name, sym_kind kind) {
-    // Typically if sym_push_scope() is not called before yyparse()
+    // If sym_push_scope() is not called before yyparse()
     if (!curr_scope) sym_push_scope();
     
     const char *name_dup = strdup(name);
@@ -66,15 +64,15 @@ static void sym_insert(const char *name, sym_kind kind) {
     // Check if it already exists in this scope
     for (sym_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
         if (strcmp(name_dup, entry->name) == 0 && kind == entry->kind) {
-            yyerror("*** illegal redefinition of a symbol within the same scope");
+            push_error("*** illegal redefinition of a symbol within the same scope");
             free(name_dup);
             return;
         }
     }
 
     // This identifier does not exist in this scope
-    sym_entry_t *new_entry = malloc(sizeof(sym_entry_t));
-    check_malloc_error(new_entry, "Malloc error when adding new entry to symbol table");
+    sym_entry_t *new_entry = calloc(1, sizeof(sym_entry_t));
+    check_alloc_error(new_entry, "Alloc error when adding new entry to symbol table");
 
     new_entry->name = name_dup;
     new_entry->kind = kind;

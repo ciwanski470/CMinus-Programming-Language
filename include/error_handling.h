@@ -5,6 +5,6 @@
 
 #pragma once
 
-void check_malloc_error(void *ptr, char *message);
+void check_alloc_error(void *ptr, char *message);
 
 void push_error(const char *message);

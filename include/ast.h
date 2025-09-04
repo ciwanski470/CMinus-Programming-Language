@@ -131,11 +131,14 @@ typedef enum {
     TS_TYPEDEF
 } type_spec_kind;
 
+// Must be set to the largest enum in type_spec_kind or this compiler will break if a larger one is used
+int MAX_TS_KIND = TS_TYPEDEF;
+
 typedef enum {
     DCTR_EMPTY,
     DCTR_ID,
     DCTR_ARRAY,
-    DCTR_FUNC_PROTO
+    DCTR_FUNC
 } decltr_kind;
 
 typedef enum {
@@ -204,7 +207,6 @@ struct enum_spec;
 struct type_spec;
 struct type_spec_list;
 struct type_qual_list;
-struct func_spec_list;
 struct decl_specs;
 struct pointer;
 struct param_list;
@@ -225,6 +227,12 @@ struct decl_spec_list;
 typedef struct constant {
     const_kind kind;
     char *value;
+    
+    // Filled in later during semantic analysis
+    union {
+        long long int_val;
+        double float_val;
+    };
 } constant;
 
 
@@ -234,8 +242,6 @@ typedef struct expr {
     // Both are used in binary expressions, and only left for unary
     struct expr *left;
     struct expr *right;
-
-    bool constant; // Certain expressions must be constant
 
     // Leaves or additional
     union {
@@ -318,18 +324,11 @@ typedef struct type_qual_list {
 } type_qual_list;
 
 
-// There is only one kind of func_spec, but I'm still making a list for scalability
-typedef struct func_spec_list {
-    func_spec spec;
-    struct func_spec_list *next;
-} func_spec_list;
-
-
 typedef struct decl_specs {
     storage_class storage;
+    func_spec func_spec;
     struct type_spec_list *type_specs;
     struct type_qual_list *type_quals;
-    struct func_spec_list *func_specs;
 } decl_specs;
 
 
@@ -354,7 +353,6 @@ typedef struct decltr {
         char *id;
 
         struct {
-            bool is_static;
             struct type_qual_list *quals;
             struct expr *size;
         } array;
@@ -563,13 +561,14 @@ enum_spec *make_enum_spec(char *name, enumerator_list *enums);
 enumerator_list *make_enum_list(char *name, expr *val);
 void add_enumerator(enumerator_list *prev, enumerator_list *curr);
 
-pointer *make_pointer(type_qual_list *quals, pointer *next);
+pointer *make_pointer(type_qual_list *quals, pointer *curr);
 
 decltr *make_empty_decltr(pointer *ptr); // For abstract
 decltr *make_id_decltr(char *id);
-decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size, bool is_static);
+decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size);
 decltr *make_decltr_proto_suffix(decltr *prev, param_list *params);
 void add_pointer(pointer *ptr, decltr *decltr);
+void extend_pointer(pointer *curr, pointer *extend);
 
 param_list *make_param_list(param_list *prev, decl *param_decl);
 
