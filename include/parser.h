@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 140 "bison/parser.yacc"
+#line 139 "bison/parser.yacc"
 
     #include "ast.h"
 
@@ -81,21 +81,21 @@ extern int yydebug;
     ENUM = 276,                    /* ENUM  */
     STRUCT = 277,                  /* STRUCT  */
     UNION = 278,                   /* UNION  */
-    CHAR = 279,                    /* CHAR  */
-    INT = 280,                     /* INT  */
-    SHORT = 281,                   /* SHORT  */
-    LONG = 282,                    /* LONG  */
-    FLOAT = 283,                   /* FLOAT  */
-    DOUBLE = 284,                  /* DOUBLE  */
-    BOOL = 285,                    /* BOOL  */
-    VOID = 286,                    /* VOID  */
-    SIGNED = 287,                  /* SIGNED  */
-    UNSIGNED = 288,                /* UNSIGNED  */
-    CONST = 289,                   /* CONST  */
-    RESTRICT = 290,                /* RESTRICT  */
-    VOLATILE = 291,                /* VOLATILE  */
-    COMPLEX = 292,                 /* COMPLEX  */
-    IMAGINARY = 293,               /* IMAGINARY  */
+    PRINT = 279,                   /* PRINT  */
+    MALLOC = 280,                  /* MALLOC  */
+    CHAR = 281,                    /* CHAR  */
+    INT = 282,                     /* INT  */
+    SHORT = 283,                   /* SHORT  */
+    LONG = 284,                    /* LONG  */
+    FLOAT = 285,                   /* FLOAT  */
+    DOUBLE = 286,                  /* DOUBLE  */
+    BOOL = 287,                    /* BOOL  */
+    VOID = 288,                    /* VOID  */
+    SIGNED = 289,                  /* SIGNED  */
+    UNSIGNED = 290,                /* UNSIGNED  */
+    CONST = 291,                   /* CONST  */
+    RESTRICT = 292,                /* RESTRICT  */
+    VOLATILE = 293,                /* VOLATILE  */
     ADD_ASSIGN = 294,              /* ADD_ASSIGN  */
     SUB_ASSIGN = 295,              /* SUB_ASSIGN  */
     MUL_ASSIGN = 296,              /* MUL_ASSIGN  */
@@ -135,7 +135,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 49 "bison/parser.yacc"
+#line 48 "bison/parser.yacc"
 
     char *sval;
     int int_val;
@@ -157,14 +157,13 @@ union YYSTYPE
     type_qual_list *type_qual_list;
     param_list *param_list;
     type_name *type_name;
-    designation *designation;
     stmt *stmt;
     block_list *block_list;
     translation_unit *translation_unit;
     ext_decl *ext_decl;
     func_def *func_def;
 
-#line 168 "parser.h"
+#line 167 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

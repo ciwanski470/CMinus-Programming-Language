@@ -26,12 +26,6 @@ typedef enum {
 } sem_namespace;
 
 typedef enum {
-    SEM_LINK_NONE,
-    SEM_LINK_INTERNAL,
-    SEM_LINK_EXTERNAL
-} sem_linkage;
-
-typedef enum {
     SEM_SCOPE_FILE,
     SEM_SCOPE_BLOCK,
     SEM_SCOPE_PARAM
@@ -40,7 +34,7 @@ typedef enum {
 /*
     NOTE: Types are arranged by how you compare them (REORDERING MAY BE RISKY)
     ST_INT to ST_CHAR are compared by signedness
-    ST_VOID to ST_IMAGINARY are compared only by the type enum
+    ST_VOID to ST_BOOL are compared only by the sem_type_kind
     ST_FUNC is compared by return type and parameter type
     ST_ARRAY is compared by element type, size, and qualifiers
     ST_STRUCT and ST_UNION are compared the same way
@@ -60,17 +54,10 @@ typedef enum {
     ST_DOUBLE,
     ST_LDOUBLE,
     ST_BOOL,
-    ST_FCOMPLEX, // Complex/Imaginary can be float, double, or long double
-    ST_FIMAGINARY,
-    ST_DCOMPLEX,
-    ST_DIMAGINARY,
-    ST_LDCOMPLEX,
-    ST_LDIMAGINARY,
     ST_FUNC,
     ST_ARRAY,
     ST_STRUCT,
     ST_UNION,
-    ST_TYPEDEF,
     ST_POINTER
 } sem_type_kind;
 
@@ -91,9 +78,6 @@ typedef struct sem_symbol {
     int enum_val; // For enum constants
 
     sem_namespace ns;
-    storage_class sc;
-    func_spec fs;
-    sem_linkage linkage;
     struct sem_type *type;
 
     bool is_definition;
@@ -110,12 +94,9 @@ typedef struct sem_type {
 
         struct sem_type *ptr_target;
 
-        struct sem_type *typedef_type;
-
         struct {
             struct sem_type *return_type;
             struct sem_type_list *params;
-            bool variadic;
         } func_info;
 
         struct {
@@ -149,7 +130,7 @@ typedef struct sem_member {
     struct sem_member *next;
 } sem_member_t;
 
-// Type creation
+// Type creation and deallocation
 
 sem_type_t *alloc_sem_type(void);
 sem_type_list_t *alloc_sem_type_list(sem_type_t *t);
@@ -157,13 +138,25 @@ sem_type_list_t *alloc_sem_type_list(sem_type_t *t);
 sem_type_t *make_primitive_type(sem_type_kind kind, bool is_signed, unsigned short quals);
 sem_type_t *make_pointer_type(unsigned short quals);
 sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomplete);
-sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params, bool variadic);
+sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params);
 sem_type_t *make_enum_type(enum_spec *enums);
 sem_type_t *make_sou_type(sou_spec *sou);
 
 unsigned short make_qual_mask(type_qual_list *quals);
 
+void free_sem_type(sem_type_t **ptype);
+
 // Type comparison
 
 bool types_equal(sem_type_t *a, sem_type_t *b);
+bool type_is_scalar(sem_type_t *type);
+bool type_is_integral(sem_type_t *type);
+
+/*
+    Validates the expression and returns the type of it
+    Returns NULL if the expression is invalid
+*/
+sem_type_t *type_of_expr(expr *e);
+
+parse_req expr_compatible(expr *e, sem_type_t *type);
 parse_req types_parsable(sem_type_t *from, sem_type_t *to);

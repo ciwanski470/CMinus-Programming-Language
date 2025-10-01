@@ -44,11 +44,14 @@ WS          [ \t\v\n\f]
 "extern"		            { return EXTERN; }
 "float"			            { return FLOAT; }
 "for"			            { return FOR; }
+"free"                      { return FREE; }
 "goto"			            { return GOTO; }
 "if"			            { return IF; }
 "inline"		            { return INLINE; }
 "int"			            { return INT; }
 "long"			            { return LONG; }
+"malloc"                    { return MALLOC; }
+"print"                     { return PRINT; }
 "register"		            { return REGISTER; }
 "restrict"		            { return RESTRICT; }
 "return"		            { return RETURN; }
@@ -64,9 +67,7 @@ WS          [ \t\v\n\f]
 "void"			            { return VOID; }
 "volatile"		            { return VOLATILE; }
 "while"			            { return WHILE; }
-"_Bool"			            { return BOOL; }
-"_Complex"		            { return COMPLEX; }
-"_Imaginary"		        { return IMAGINARY; }
+"bool"			            { return BOOL; }
 "__func__"                  { return FUNC_NAME; }
 
 {L}({L}|{D})*		        { yylval.sval = strdup(yytext); return check_type(); }

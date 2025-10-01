@@ -47,6 +47,7 @@ typedef enum {
     EXPR_LOGNOT,            // !e
     EXPR_SIZEOF_EXPR,       // sizeof(e)
     EXPR_SIZEOF_TYPE,       // sizeof(type)
+    EXPR_MALLOC,            // malloc(size)
 
     /* cast */
     EXPR_CAST,              // (type) e
@@ -124,8 +125,6 @@ typedef enum {
     TS_SIGNED,
     TS_UNSIGNED,
     TS_BOOL,
-    TS_COMPLEX,
-    TS_IMAGINARY,
     TS_SOU,
     TS_ENUM,
     TS_TYPEDEF
@@ -171,7 +170,10 @@ typedef enum {
     STMT_GOTO,
     STMT_CONTINUE,
     STMT_BREAK,
-    STMT_RETURN
+    STMT_RETURN,
+    STMT_PRINT_STR,
+    STMT_PRINT_EXPR,
+    STMT_FREE
 } stmt_kind;
 
 typedef enum {
@@ -211,7 +213,6 @@ struct decl_specs;
 struct pointer;
 struct param_list;
 struct decltr;
-struct designation;
 struct init_list;
 struct initializer;
 struct init_decltr;
@@ -222,6 +223,9 @@ struct func_def;
 struct ext_decl;
 struct translation_unit;
 struct decl_spec_list;
+
+// Forward declaration for a struct defined in another header ("semantic_types.h")
+struct sem_type;
 
 // int, float, enum
 typedef struct constant {
@@ -359,7 +363,6 @@ typedef struct decltr {
 
         struct {
             struct param_list *params;
-            bool has_ellipsis;
         } func;
     };
 
@@ -368,21 +371,8 @@ typedef struct decltr {
 
 
 // Initially in reverse order during parsing
-typedef struct designation {
-    designation_kind kind;
-    union {
-        struct expr *index;
-        char *member;
-    };
-
-    struct designation *next;
-} designation;
-
-
-// Initially in reverse order during parsing
 typedef struct init_list {
     struct initializer *init;
-    struct designation *designation;
 
     struct init_list *next;
 } init_list;
@@ -410,6 +400,7 @@ typedef struct decl {
     decl_kind kind;
     struct decl_specs *specs;
     bool decltr_abstract;
+    struct sem_type *type; // To be filled during semantic analysis
     union {
         struct init_decltr *init_decltrs;
         struct decltr *param_decltr;
@@ -479,6 +470,19 @@ typedef struct stmt {
         struct {
             struct expr *result;
         } return_stmt;
+
+        union {
+            struct {
+                struct expr *item;
+                constant *size;
+            };
+
+            const char *str_val;
+        } print_stmt;
+
+        struct {
+            struct expr *item;
+        } free_stmt;
     };
 } stmt;
 
@@ -575,11 +579,7 @@ param_list *make_param_list(param_list *prev, decl *param_decl);
 initializer *make_expr_init(expr *assignment);
 initializer *make_list_init(init_list *list);
 
-init_list *make_init_list(init_list *prev, designation *designation, initializer *init);
-
-designation *make_arr_designator(expr *index);
-designation *make_member_designator(char *member);
-void add_designator(designation *prev, designation *curr);
+init_list *make_init_list(init_list *prev, initializer *init);
 
 type_name *make_type_name(decl_specs *specs, decltr *suffix);
 
@@ -606,6 +606,9 @@ stmt *make_case_stmt(expr *case_expr, stmt *result);
 stmt *make_default_stmt(stmt *result);
 stmt *make_goto_stmt(char *label);
 stmt *make_return_stmt(expr *result);
+stmt *make_str_print_stmt(const char *str_val);
+stmt *make_expr_print_stmt(expr *item, constant *size);
+stmt *make_free_stmt(expr *item);
 stmt *make_empty_stmt(stmt_kind kind); // For continue, break, and empty return
 
 block_list *make_stmt_block_item(stmt *stmt);

@@ -15,7 +15,10 @@ void check_alloc_error(void *ptr, char *message) {
     }
 }
 
+int error_count = 0;
+
 void push_error(const char *message) {
+    error_count++;
     yyerror(message);
 }
 

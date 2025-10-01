@@ -40,20 +40,6 @@ char *func_name() {
 }
 
 /*
-    --------- Parameter ellipsis ---------
-*/
-
-bool has_ellipsis = 0;
-
-void set_param_ellipsis(bool val) {
-    has_ellipsis = val;
-}
-
-bool check_param_ellipsis() {
-    return has_ellipsis;
-}
-
-/*
     --------- Declarator ID ---------
 */
 
@@ -92,7 +78,6 @@ static param_list *reverse_param_list                   (param_list *node, bool 
 static struct_decltr_list *reverse_struct_decltr_list   (struct_decltr_list *node, bool is_head);
 static struct_decl_list *reverse_struct_decl_list       (struct_decl_list *node, bool is_head);
 static enumerator_list *reverse_enumerator_list         (enumerator_list *node, bool is_head);
-static designation *reverse_designation                 (designation *node, bool is_head);
 static decltr *reverse_decltr                           (decltr *node, bool is_head);
 static expr *reverse_argument_list                      (expr *node, bool is_head);
 
@@ -139,7 +124,6 @@ static init_list *reverse_init_list(init_list *node, bool is_head) {
 
     // Reverse sublists
     reverse_in_initializer(node->init);
-    node->designation = reverse_designation(node->designation, true);
 
     return new_head;
 }
@@ -188,15 +172,6 @@ static enumerator_list *reverse_enumerator_list(enumerator_list *node, bool is_h
 
     // Reverse sublists
     reverse_in_expr(node->const_val);
-
-    return new_head;
-}
-
-static designation *reverse_designation(designation *node, bool is_head) {
-    reverse_list(designation, reverse_designation)
-
-    // Reverse sublists
-    reverse_in_expr(node->index);
 
     return new_head;
 }

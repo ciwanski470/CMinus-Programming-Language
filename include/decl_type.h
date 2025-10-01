@@ -12,5 +12,8 @@
 /*
     Constructs a sem_type_t for based on the given declaration specifiers and declarator
     Returns NULL if invalid
+
+    Side effects:
+        - SoU specifiers will go into the symbol table
 */
 sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param);

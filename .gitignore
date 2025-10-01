@@ -58,3 +58,5 @@ build/
 # Extra useless files
 .DS_Store
 .vscode
+*.original
+*.gimple

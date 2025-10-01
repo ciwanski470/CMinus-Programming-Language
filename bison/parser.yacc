@@ -18,11 +18,10 @@ void yyerror(const char *s) {
 %token DEFAULT IF ELSE SWITCH CASE WHILE DO FOR GOTO CONTINUE BREAK RETURN
 %token TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
 %token ENUM STRUCT UNION
+%token PRINT MALLOC FREE
 
 %token CHAR INT SHORT LONG FLOAT DOUBLE BOOL VOID SIGNED UNSIGNED
 %token CONST RESTRICT VOLATILE
-
-%token COMPLEX IMAGINARY
 
 %token ADD_ASSIGN SUB_ASSIGN MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN
 %token AND_ASSIGN OR_ASSIGN XOR_ASSIGN LSHIFT_ASSIGN RSHIFT_ASSIGN
@@ -67,7 +66,6 @@ void yyerror(const char *s) {
     type_qual_list *type_qual_list;
     param_list *param_list;
     type_name *type_name;
-    designation *designation;
     stmt *stmt;
     block_list *block_list;
     translation_unit *translation_unit;
@@ -129,9 +127,10 @@ void yyerror(const char *s) {
 %type <type_qual_list> type_qualifier_list
 %type <param_list> parameter_type_list parameter_list
 %type <type_name> type_name
-%type <designation> designation designator designator_list
+
+// Statements and program
 %type <stmt> statement expression_statement labeled_statement compound_statement
-%type <stmt> selection_statement iteration_statement jump_statement
+%type <stmt> selection_statement iteration_statement jump_statement print_statement free_statement
 %type <block_list> block_item block_item_list
 %type <func_def> function_definition
 %type <ext_decl> external_declaration
@@ -189,6 +188,7 @@ unary_expression
 	| unary_operator cast_expression    { $$ = make_expr($1, $2, 0); }
 	| SIZEOF unary_expression           { $$ = make_expr(EXPR_SIZEOF_EXPR, $2, 0); }
 	| SIZEOF '(' type_name ')'          { $$ = make_sizeof_expr($3); }
+    | MALLOC '(' expression ')'         { $$ = make_expr(EXPR_MALLOC, $3, 0); }
 	;
 
 unary_operator
@@ -345,8 +345,6 @@ type_specifier
 	| SIGNED                    { $$ = make_basic_type_spec(TS_SIGNED); }
 	| UNSIGNED                  { $$ = make_basic_type_spec(TS_UNSIGNED); }
 	| BOOL                      { $$ = make_basic_type_spec(TS_BOOL); }
-	| COMPLEX                   { $$ = make_basic_type_spec(TS_COMPLEX); }
-	| IMAGINARY                 { $$ = make_basic_type_spec(TS_IMAGINARY); }
 	| struct_or_union_specifier { $$ = make_sou_type_spec($1); }
 	| enum_specifier            { $$ = make_enum_type_spec($1); }
 	| TYPEDEF_NAME              { $$ = make_typedef_type_spec($1); }
@@ -499,24 +497,8 @@ initializer
 	;
 
 initializer_list
-	: initializer                                   { $$ = make_init_list(0, 0, $1); }
-	| designation initializer                       { $$ = make_init_list(0, $1, $2); }
-	| initializer_list ',' initializer              { $$ = make_init_list($1, 0, $3); }
-	| initializer_list ',' designation initializer  { $$ = make_init_list($1, $3, $4); }
-	;
-
-designation
-	: designator_list '='   { $$ = $1; }
-	;
-
-designator_list
-	: designator                    { $$ = $1; }
-	| designator_list designator    { add_designator($1, $2); $$ = $2; }
-	;
-
-designator
-	: '[' constant_expression ']'   { $$ = make_arr_designator($2); }
-	| '.' IDENTIFIER                { $$ = make_member_designator($2); free($2); }
+	: initializer                                   { $$ = make_init_list(0, $1); }
+	| initializer_list ',' initializer              { $$ = make_init_list($1, $3); }
 	;
 
 statement
@@ -526,6 +508,8 @@ statement
 	| selection_statement   { $$ = $1; }
 	| iteration_statement   { $$ = $1; }
 	| jump_statement        { $$ = $1; }
+    | print_statement       { $$ = $1; }
+    | free_statement        { $$ = $1; }
 	;
 
 labeled_statement
@@ -575,9 +559,18 @@ jump_statement
 	: GOTO IDENTIFIER ';'   { $$ = make_goto_stmt($2); }
 	| CONTINUE ';'          { $$ = make_empty_stmt(STMT_CONTINUE); }
 	| BREAK ';'             { $$ = make_empty_stmt(STMT_BREAK); }
-	| RETURN ';'            { $$ = make_empty_stmt(STMT_RETURN); }
+	| RETURN ';'            { $$ = make_return_stmt(0); }
 	| RETURN expression ';' { $$ = make_return_stmt($2); }
 	;
+
+print_statement
+    : PRINT '(' STR_LITERAL ')' ';'                         { $$ = make_str_print_stmt($3); }
+    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_print_stmt($3, $5); }
+    ;
+
+free_statement
+    : FREE '(' expression ')' ';'   { $$ = make_print_stmt($3); }
+    ;
 
 translation_unit
 	: external_declaration                  { $$ = make_trans_unit(0, $1); ast_root = $$; }

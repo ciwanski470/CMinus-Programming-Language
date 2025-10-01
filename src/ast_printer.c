@@ -30,6 +30,7 @@ int indents = 0;
         ast_write(label)        \
         ast_write("Item:\n")    \
         print_expr(expr->left);  \
+        break;
 
 /*
     Used as a shorthand for writing cases for printing binary expressions
@@ -76,7 +77,6 @@ static void print_block_list        (block_list *block);
 static void print_expr              (expr *expr);
 static void print_type_name         (type_name *type);
 static void print_init_list         (init_list *list);
-static void print_designation       (designation *desig);
 static void print_arg_list          (expr *arg_expr);
 
 // Public function
@@ -265,12 +265,6 @@ static void print_type_spec(type_spec *type) {
         case TS_BOOL:
             ast_write("_Bool\n");
             break;
-        case TS_COMPLEX:
-            ast_write("_Complex\n");
-            break;
-        case TS_IMAGINARY:
-            ast_write("_Imaginary\n");
-            break;
         case TS_SOU: {
             char *kind;
             switch (type->sou->kind) {
@@ -287,6 +281,7 @@ static void print_type_spec(type_spec *type) {
             } else {
                 ast_write("%s \"%s\"\n", kind, type->sou->name);
             }
+            free(kind);
             break;
         }
         case TS_ENUM:
@@ -566,6 +561,18 @@ static void print_stmt(stmt *stmt) {
                 ast_write("Return: None\n");
             }
             break;
+        case STMT_PRINT_STR:
+            ast_write("Print %s:\n", stmt->print_stmt.str_val)
+            break;
+        case STMT_PRINT_EXPR:
+            ast_write("Print:\n")
+            indents++;
+            ast_write("Item:\n")
+            print_expr(stmt->print_stmt.item);
+            ast_write("Size: %s\n", stmt->print_stmt.size->value)
+            indents--;
+            break;
+            
     }
 
     indents--;
@@ -615,6 +622,7 @@ static void print_expr(expr *expr) {
         unary_expr_case(EXPR_BITNOT, "Bitwise Not\n")
         unary_expr_case(EXPR_LOGNOT, "Logical Not\n")
         unary_expr_case(EXPR_SIZEOF_EXPR, "Sizeof:\n")
+        unary_expr_case(EXPR_MALLOC, "Malloc:\n")
 
         bin_expr_case(EXPR_MUL, "Multiplication\n")
         bin_expr_case(EXPR_DIV, "Division\n")
@@ -731,28 +739,8 @@ static void print_init_list(init_list *list) {
     indents++;
 
     for (init_list *curr = list; curr; curr = curr->next) {
-        ast_write("Designation:\n");
-        print_designation(curr->designation);
         ast_write("Initializer:\n");
         print_initializer(curr->init);
-    }
-
-    indents--;
-}
-
-static void print_designation(designation *desig) {
-    indents++;
-
-    for (designation *curr = desig; curr; curr = curr->next) {
-        switch (curr->kind) {
-            case DSG_INDEX:
-                ast_write("Index\n");
-                print_expr(desig->index);
-                break;
-            case DSG_MEMBER:
-                ast_write("Member: \"%s\"\n", curr->member);
-                break;
-        }
     }
 
     indents--;

@@ -7,4 +7,6 @@
 
 void check_alloc_error(void *ptr, char *message);
 
+
+extern int error_count;
 void push_error(const char *message);

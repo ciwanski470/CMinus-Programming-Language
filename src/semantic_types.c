@@ -49,12 +49,11 @@ sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomple
     return new_type;
 }
 
-sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params, bool variadic) {
+sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params) {
     sem_type_t *new_type = alloc_sem_type();
     new_type->kind = ST_FUNC;
     new_type->func_info.return_type = return_type;
     new_type->func_info.params = params;
-    new_type->func_info.variadic = variadic;
     return new_type;
 }
 
@@ -91,9 +90,31 @@ sem_type_t *make_enum_type(enum_spec *enums) {
     return make_primitive_type(ST_SHORT, false, 0);
 }
 
-sem_type_t *make_sou_type(sou_spec *sou) {
-    sem_sou_info_t *sou_info;
-    
+unsigned short make_qual_mask(type_qual_list *quals) {
+    unsigned short mask = 0;
+    for (type_qual_list *tql = quals; tql; tql = tql->next) {
+        switch (tql->qual) {
+            case TQ_CONST: mask |= TQ_CONST_MASK; break;
+            case TQ_RESTRICT: mask |= TQ_RESTRICT_MASK; break;
+            case TQ_VOLATILE: mask |= TQ_VOLATILE_MASK; break;
+        }
+    }
+    return mask;
+}
+
+void free_sem_type(sem_type_t **ptype) {
+    if (!ptype || !*ptype) return;
+
+    if ((*ptype)->kind == ST_STRUCT || (*ptype)->kind == ST_UNION) {
+        // Unfilled
+    } else if ((*ptype)->kind == ST_FUNC) {
+        // Unfilled
+    } else if ((*ptype)->kind == ST_ARRAY) {
+        // Unfilled
+    }
+
+    free(*ptype);
+    *ptype = 0;
 }
 
 bool types_equal(sem_type_t *a, sem_type_t *b) {
@@ -104,7 +125,7 @@ bool types_equal(sem_type_t *a, sem_type_t *b) {
         return a->is_signed == b->is_signed;
     }
 
-    if (ST_VOID <= a->kind && a->kind <= ST_LDIMAGINARY) {
+    if (ST_VOID <= a->kind && a->kind <= ST_BOOL) {
         return true;
     }
 
@@ -117,8 +138,4 @@ bool types_equal(sem_type_t *a, sem_type_t *b) {
     }
 
     return false;
-}
-
-parse_req types_parsable(sem_type_t *from, sem_type_t *to) {
-    // Unfilled
 }

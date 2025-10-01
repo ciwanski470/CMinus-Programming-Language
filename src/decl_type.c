@@ -33,12 +33,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
         return false;
     }
 
-    // Not implementing _Complex or _Imaginary
-    if (count[TS_COMPLEX] || count[TS_IMAGINARY]) {
-        free(count);
-        return false;
-    }
-
     for (int kind = 0; kind <= MAX_TS_KIND; kind++) {
         // Only long can have more than one copy
         if (kind == TS_LONG) {
@@ -130,63 +124,77 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
         if (ts->kind == TS_ENUM) {
             enum_spec *enums = ts->enums;
             sem_symbol_t *sym = sem_lookup_tag(enums->name);
-            if (sym && enums->enum_list) { // Redefinition of a tag
-                push_error("*** illegal redefinition of a tag");
+
+            // Redefinition
+            if (sym && sym->is_definition && enums->enum_list) {
+                push_error("*** illegal redefinition of an enum");
                 return NULL;
-            } else if (sym) {
-                // Enums are "unsigned short" in this implementation
-                if (sym->type->kind != ST_SHORT || sym->type->is_signed != false) {
-                    push_error("*** tag not of enum type used as enum tag");
-                    return NULL;
-                }
-                sem_type_t *new_type = alloc_sem_type();
-                new_type->kind = ST_SHORT;
-                new_type->is_signed = false;
-                new_type->quals = quals;
-                return new_type;
-            } else if (enums->enum_list) {
-                sem_type_t *new_type = make_enum_type(enums);
-                sem_define_tag(enums->name, new_type);
-                new_type->quals = quals;
-                return new_type;
-            } else {
-                push_error("*** tag not found");
             }
+
+            // Wrong tag kind
+            if (sym && sym->type->kind != ST_SHORT) {
+                push_error("*** tag not of struct kind used as struct");
+                return NULL;
+            }
+
+            // First definition
+            if (enums->enum_list) {
+                sem_type_t *enum_type = make_enum_type(enums);
+                if (enums->name) sem_define_tag(enums->name, enum_type);
+                return enum_type;
+            }
+
+            // No definition (although that is unimportant for enums)
+            if (!sym) {
+                sym = sem_declare_tag(enums->name, ST_SHORT);
+            }
+            sem_type_t *new_type = alloc_sem_type();
+            new_type->kind = sym->type->kind;
+            new_type->quals = quals;
+            return new_type;
         } else if (ts->kind == TS_SOU) {
             sou_spec *sou = ts->sou;
             sem_symbol_t *sym = sem_lookup_tag(sou->name);
-            if (sym && sou->decls) { // Redefinition of a tag
-                push_error("*** illegal redefinition of a tag");
+
+            // Redefinition
+            if (sym && sym->is_definition && sou->decls) {
+                push_error("*** illegal redefinition of a struct or union");
                 return NULL;
-            } else if (sym) {
-                if (sou->kind == SOU_STRUCT && sym->type->kind != ST_STRUCT) {
-                    push_error("*** tag not of struct type used as struct tag");
-                    return NULL;
-                } else if (sou->kind == SOU_UNION && sym->type->kind != ST_UNION) {
-                    push_error("*** tag not of union type used as union tag");
-                    return NULL;
-                }
-                // Basically returning the same type except it has qualifiers
-                sem_type_t *new_type = alloc_sem_type();
-                new_type->kind = sym->type->kind;
-                new_type->sou_info = sym->type->sou_info;
-                new_type->quals = quals;
-                return new_type;
-            } else if (sou->decls) {
-                sem_type_t *new_type = make_sou_type(sou);
-                sem_define_tag(sou->name, new_type);
-                new_type->quals = quals;
-                return new_type;
-            } else {
-                push_error("*** tag not found");
             }
-        } else if (ts->kind == TS_TYPEDEF) {
-            sem_symbol_t *typedef_sym = sem_lookup_typedef(ts->type_name);
+
+            // Wrong tag kind
+            if (sym && sou->kind == SOU_STRUCT && sym->type->kind != ST_STRUCT) {
+                push_error("*** tag not of struct kind used as struct");
+                return NULL;
+            }
+            if (sym && sou->kind == SOU_UNION && sym->type->kind != ST_UNION) {
+                push_error("*** tag not of union kind used as union");
+                return NULL;
+            }
+
+            // First definition
+            if (sou->decls) {
+                sem_type_t *sou_type = make_sou_type(sou);
+                if (sou->name) sem_define_tag(sou->name, sou_type);
+                return sou_type;
+            }
+
+            // No definition (whether before or now)
+            // Will get a definition later when type is forced to be completed
+            if (!sym) {
+                sym = sem_declare_tag(sou->name, (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION);
+            }
             sem_type_t *new_type = alloc_sem_type();
-            new_type->kind = ST_TYPEDEF;
-            new_type->typedef_type = typedef_sym->type;
+            new_type->kind = sym->type->kind;
             new_type->quals = quals;
             return new_type;
+        } else if (ts->kind == TS_TYPEDEF) {
+            sem_symbol_t *typedef_sym = sem_lookup_typedef(ts->type_name);
+            if (!typedef_sym) {
+                push_error("*** typedef does not exist");
+                return NULL;
+            }
+            return typedef_sym->type;
         }
     }
 
@@ -197,6 +205,7 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
 
     sem_type_kind primary = ST_INT;
 
+    // *** NOTE: SHOULD CHANGE TO THROW ERROR FOR INCOMPATIBLE TYPE SPECIFIERS ***
     for (; tsl; tsl = tsl->next) {
         type_spec_kind kind = tsl->type->kind;
         switch (kind) {
@@ -309,6 +318,9 @@ static sem_type_list_t *make_parameter_type_list(param_list *params) {
 }
 
 static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param) {
+    if (!d) return base;
+    if (!base) return NULL;
+
     sem_type_t *prev = NULL;
     sem_type_t *head = NULL;
 
@@ -321,7 +333,7 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
                 break;
             case DCTR_FUNC:
                 sem_type_list_t *params = make_parameter_type_list(d->func.params);
-                curr = make_func_type(NULL, params, d->func.has_ellipsis);
+                curr = make_func_type(NULL, params);
                 break;
             default:;
         }
@@ -370,6 +382,8 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
 }
 
 static bool validate_type(sem_type_t *type, bool is_param) {
+    if (!type) return false;
+
     while (type) {
         switch (type->kind) {
             case ST_ARRAY:
@@ -398,10 +412,6 @@ static bool validate_type(sem_type_t *type, bool is_param) {
                     push_error("*** functions may not return arrays");
                     return false;
                 }
-                if (type->func_info.variadic) {
-                    push_error("*** yeah buddy I don't like variadic functions");
-                    return false;
-                }
                 type = ret;
                 break;
             case ST_POINTER:
@@ -424,6 +434,8 @@ sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param) {
     sem_type_t *final = apply_decltr_chain(d, base, is_param);
 
     if (!validate_type(final, is_param)) {
+        free_sem_type(final);
+        free_sem_type(base);
         return NULL;
     }
     return final;

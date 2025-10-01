@@ -275,7 +275,6 @@ decltr *make_decltr_proto_suffix(decltr *prev, param_list *params) {
 
     new_decltr->kind = DCTR_FUNC;
     new_decltr->next = prev;
-    new_decltr->func.has_ellipsis = check_param_ellipsis();
     new_decltr->func.params = params;
 
     return new_decltr;
@@ -331,39 +330,14 @@ initializer *make_list_init(init_list *list) {
     return new_init;
 }
 
-init_list *make_init_list(init_list *prev, designation *designation, initializer *init) {
+init_list *make_init_list(init_list *prev, initializer *init) {
     init_list *new_init_list = calloc(1, sizeof(init_list));
     check_alloc_error(new_init_list, "Alloc error when creating new init list");
 
-    new_init_list->designation = designation;
     new_init_list->init = init;
     new_init_list->next = prev;
 
     return new_init_list;
-}
-
-designation *make_arr_designator(expr *index) {
-    designation *new_designation = calloc(1, sizeof(designation));
-    check_alloc_error(new_designation, "Alloc error when creating new designation");
-
-    new_designation->kind = DSG_INDEX;
-    new_designation->index = index;
-
-    return new_designation;
-}
-
-designation *make_member_designator(char *member) {
-    designation *new_designation = calloc(1, sizeof(designation));
-    check_alloc_error(new_designation, "Alloc error when creating new designation");
-
-    new_designation->kind = DSG_MEMBER;
-    new_designation->member = member ? strdup(member) : 0;
-
-    return new_designation;
-}
-
-void add_designator(designation *prev, designation *curr) {
-    curr->next = prev;
 }
 
 type_name *make_type_name(decl_specs *specs, decltr *suffix) {
@@ -587,7 +561,35 @@ stmt *make_return_stmt(expr *result) {
     return new_stmt;
 }
 
-// For continue, break, and empty return
+stmt *make_str_print_stmt(const char *str_val) {
+    stmt *new_stmt = alloc_stmt();
+
+    new_stmt->kind = STMT_PRINT_STR;
+    new_stmt->print_stmt.str_val = strdup(str_val);
+
+    return new_stmt;
+}
+
+stmt *make_expr_print_stmt(expr *item, constant *size) {
+    stmt *new_stmt = alloc_stmt();
+
+    new_stmt->kind = STMT_PRINT_EXPR;
+    new_stmt->print_stmt.item = item;
+    new_stmt->print_stmt.size = size;
+
+    return new_stmt;
+}
+
+stmt *make_free_stmt(expr *item) {
+    stmt *new_stmt = alloc_stmt();
+
+    new_stmt->kind = STMT_FREE;
+    new_stmt->free_stmt.item = item;
+
+    return new_stmt;
+}
+
+// For continue and break
 stmt *make_empty_stmt(stmt_kind kind) {
     stmt *new_stmt = alloc_stmt();
 

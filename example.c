@@ -20,4 +20,8 @@ list *reverse_list(list *curr, int is_first) {
     typedef int (*(*some_type)(int, int))[8];
 
     some_type var[10];
+
+    for (int i=0; i<4; i++) {
+        b[i] = i;
+    }
 }
