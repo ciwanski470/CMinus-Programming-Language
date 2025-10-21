@@ -197,7 +197,6 @@ unary_expression
 unary_operator
 	: '&'   { $$ = EXPR_ADDREF; }
 	| '*'   { $$ = EXPR_DEREF; }
-	| '+'   { $$ = EXPR_PLUS; }
 	| '-'   { $$ = EXPR_MINUS; }
 	| '~'   { $$ = EXPR_BITNOT; }
 	| '!'   { $$ = EXPR_LOGNOT; }
@@ -292,7 +291,6 @@ assignment_operator
 
 expression
 	: assignment_expression                 { $$ = $1; }
-	| expression ',' assignment_expression  { $$ = make_expr(EXPR_COMMA, $1, $3); }
 	;
 
 constant_expression
