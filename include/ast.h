@@ -6,6 +6,7 @@
 
 #include "helper_enums.h"
 #include <stdbool.h>
+#include <stdlib.h>
 
 /*
     --------- Enums ---------
@@ -14,6 +15,7 @@
 typedef enum {
     CONSTANT_INT,
     CONSTANT_FLOAT,
+    CONSTANT_PTR,
     CONSTANT_ENUM
 } const_kind;
 
@@ -41,7 +43,6 @@ typedef enum {
     EXPR_PRE_DECR,          // --e
     EXPR_ADDREF,            // &e
     EXPR_DEREF,             // *e
-    EXPR_PLUS,              // +e
     EXPR_MINUS,             // -e
     EXPR_BITNOT,            // ~e
     EXPR_LOGNOT,            // !e
@@ -87,21 +88,8 @@ typedef enum {
     /* conditional */
     EXPR_CONDITIONAL,       // e1 ? e2 : e3
 
-    /* assignment (all forms) */
+    /* assignment */
     EXPR_ASSIGN,            // e1 = e2
-    EXPR_MUL_ASSIGN,        // e1 *= e2
-    EXPR_DIV_ASSIGN,        // e1 /= e2
-    EXPR_MOD_ASSIGN,        // e1 %= e2
-    EXPR_ADD_ASSIGN,        // e1 += e2
-    EXPR_SUB_ASSIGN,        // e1 -= e2
-    EXPR_LSHIFT_ASSIGN,     // e1 <<= e2
-    EXPR_RSHIFT_ASSIGN,     // e1 >>= e2
-    EXPR_AND_ASSIGN,        // e1 &= e2
-    EXPR_XOR_ASSIGN,        // e1 ^= e2
-    EXPR_OR_ASSIGN,         // e1 |= e2
-
-    /* comma expression */
-    EXPR_COMMA              // e1 , e2
 } expr_kind;
 
 typedef enum {
@@ -131,7 +119,7 @@ typedef enum {
 } type_spec_kind;
 
 // Must be set to the largest enum in type_spec_kind or this compiler will break if a larger one is used
-int MAX_TS_KIND = TS_TYPEDEF;
+#define MAX_TS_KIND TS_TYPEDEF
 
 typedef enum {
     DCTR_EMPTY,
@@ -233,10 +221,20 @@ typedef struct constant {
     char *value;
     
     // Filled in later during semantic analysis
+    bool val_filled;
     union {
-        long long int_val;
-        double float_val;
-    };
+        char c_val;
+        short s_val;
+        int i_val;
+        long long l_val;
+        unsigned char uc_val;
+        unsigned short us_val;
+        unsigned int ui_val;
+        unsigned long long ul_val;
+        float f_val;
+        double d_val;
+        uintptr_t p_val;
+    } val;
 } constant;
 
 
@@ -256,8 +254,11 @@ typedef struct expr {
         struct {
             struct type_name *type;     // EXPR_CAST, EXPR_SIZEOF_TYPE, and EXPR_INIT_LIST
             struct init_list *init;     // EXPR_INIT_LIST
+            struct sem_type *tn_type;   // Semantic type of the struct type_name
         };
     } extra;
+
+    struct sem_type *type; // To be filled in during semantic analysis
 } expr;
 
 
@@ -624,3 +625,10 @@ ext_decl *make_decl_ext_decl(decl *decl);
 
 // Translation unit
 translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr);
+
+/*
+    --------- Freeing Memory ---------
+*/
+
+void free_expr(expr *e);
+void free_type_name(type_name *tn);

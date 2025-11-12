@@ -32,15 +32,16 @@ void sem_push_scope(void) {
     memset(new_scope->buckets, 0, sizeof(new_scope->buckets));
     new_scope->prev = curr_scope;
     curr_scope = new_scope;
+
+    ttable_push_scope();
 }
 
-void free_symbol(sem_symbol_t **psym) {
-    if (!psym || !*psym) return;
+void free_symbol(sem_symbol_t *sym) {
+    if (!sym) return;
 
     // Note: does not free type because that value gets attached to declarations
-    free((*psym)->name);
-    free((*psym));
-    *psym = 0;
+    free(sym->name);
+    free(sym);
 }
 
 void sem_pop_scope(void) {
@@ -50,7 +51,7 @@ void sem_pop_scope(void) {
         sym_entry_t *entry = curr_scope->buckets[i];
         while (entry) {
             sym_entry_t *next = entry->next;
-            free_symbol(&entry->sym);
+            free_symbol(entry->sym);
             free(entry);
             entry = next;
         }
@@ -58,10 +59,12 @@ void sem_pop_scope(void) {
     scope_t *old = curr_scope;
     curr_scope = curr_scope->prev;
     free(old);
+
+    ttable_pop_scope();
 }
 
 static sem_symbol_t *make_sem_symbol(
-    const char *name,
+    char *name,
     int enum_val,
     sem_namespace ns,
     sem_type_t *type,
@@ -124,16 +127,16 @@ static bool sem_insert_symbol(sem_symbol_t *sym) {
     return true;
 }
 
-sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, bool is_tentative, scope_kind scope) {
+sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, bool is_tentative, bool is_definition) {
     if (!curr_scope) return NULL;
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_ID, type, false, is_tentative);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_ID, type, is_definition, is_tentative);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
-    } 
+    }
     return new_sym;
 }
 
@@ -179,6 +182,27 @@ sem_symbol_t *sem_define_tag(const char *name, sem_type_t *type) {
     return new_sym;
 }
 
+sem_symbol_t *sem_declare_sou(const char *name, sem_type_kind kind) {
+    if (!curr_scope) return NULL;
+    if (kind != ST_STRUCT && kind != ST_UNION) return NULL;
+
+    ttable_entry_kind ttable_kind = (kind == ST_STRUCT) ? TTABLE_STRUCT : TTABLE_UNION;
+    size_t id = ttable_reserve_entry(name, ttable_kind);
+    sem_type_t *type = get_type_info(id);
+
+    if (type->sou_info->complete) {
+        return NULL;
+    }
+
+    const char *name_dup = strdup(name);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_TAG, type, false, false);
+    if (!sem_insert_symbol(new_sym)) {
+        free_symbol(new_sym);
+        return NULL;
+    }
+    return new_sym;
+}
+
 sem_symbol_t *sem_define_sou(const char *name, sou_spec *sou) {
     if (!curr_scope) return NULL;
 
@@ -196,7 +220,6 @@ sem_symbol_t *sem_define_sou(const char *name, sou_spec *sou) {
     }
 
     sem_type_t *sou_type = get_type_info(ttable_push_sou(sou));
-    free(sym->type);
     sym->type = sou_type;
     return sym;
 }

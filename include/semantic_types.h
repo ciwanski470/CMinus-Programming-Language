@@ -52,7 +52,6 @@ typedef enum {
     ST_VOID,
     ST_FLOAT,
     ST_DOUBLE,
-    ST_LDOUBLE,
     ST_BOOL,
     ST_FUNC,
     ST_ARRAY,
@@ -134,9 +133,10 @@ typedef struct sem_member {
 
 sem_type_t *alloc_sem_type(void);
 sem_type_list_t *alloc_sem_type_list(sem_type_t *t);
+sem_sou_info_t *alloc_sou_info(void);
 
 sem_type_t *make_primitive_type(sem_type_kind kind, bool is_signed, unsigned short quals);
-sem_type_t *make_pointer_type(unsigned short quals);
+sem_type_t *make_pointer_type(sem_type_t *target, unsigned short quals);
 sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomplete);
 sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params);
 sem_type_t *make_enum_type(enum_spec *enums);
@@ -144,13 +144,15 @@ sem_type_t *make_sou_type(sou_spec *sou);
 
 unsigned short make_qual_mask(type_qual_list *quals);
 
-void free_sem_type(sem_type_t **ptype);
+void free_all_sem_types(void);
+void free_sem_type(sem_type_t *type);
 
 // Type comparison
 
-bool types_equal(sem_type_t *a, sem_type_t *b);
+bool types_equal(sem_type_t *a, sem_type_t *b); // NOT FINISHED
 bool type_is_scalar(sem_type_t *type);
 bool type_is_integral(sem_type_t *type);
+bool type_is_float(sem_type_t *type);
 
 /*
     Validates the expression and returns the type of it
@@ -158,5 +160,28 @@ bool type_is_integral(sem_type_t *type);
 */
 sem_type_t *type_of_expr(expr *e);
 
+/*
+    Validates the constant and returns the type of it
+    Returns NULL if the constant is invalid
+*/
+sem_type_t *type_of_const(constant *c);
+
+/*
+    Fills in the value of the constant given the type
+    Returns true if the constant is valid and false otherwise
+*/
+bool fill_const_val(constant *c, sem_type_t *type);
+
 parse_req expr_compatible(expr *e, sem_type_t *type);
 parse_req types_parsable(sem_type_t *from, sem_type_t *to);
+
+size_t size_of_type(sem_type_t *type);
+sem_type_t *larger_type(sem_type_t *a, sem_type_t *b);
+sem_type_t *arithmetic_promotion(sem_type_t *a, sem_type_t *b);
+
+size_t size_of_string_lit(const char *s);
+
+int get_char_val(const char *s);
+
+bool resolve_sou_type(sem_type_t *sou_type);
+sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name);

@@ -1,184 +1,22 @@
-Declaration:
-    Specifiers:
-        Storage Class: typedef
-        Type Specifiers:
-            Struct "list":
-                Declaration:
-                    Specifiers:
-                        Type Specifiers:
-                            int
-                    Declarators:
-                        Declarator:
-                            Identifier: "val"
-                        Bit field: None
-                Declaration:
-                    Specifiers:
-                        Type Specifiers:
-                            Struct "list"
-                    Declarators:
-                        Declarator:
-                            Identifier: "next"
-                                Pointer:
-                                    *Ptr
-                        Bit field: None
-    Declarator-Initializer List:
-        Declarator:
-            Identifier: "list"
-        Initializer: None
-
 Function definition:
     Specifiers:
         Type Specifiers:
-            void
-    Declarator:
-        Identifier: "func"
-        Function Suffix:
-            Has ellipsis: 0
-            Parameters:
-                Declaration:
-                    Specifiers:
-                        Type Specifiers:
-                            int
-                    Parameter Declarator:
-                        Identifier: "a"
-                        Array Suffix:
-                            Size:
-                                Constant: "8"
-    Body:
-
-Function definition:
-    Specifiers:
-        Type Specifiers:
-            Typedef: "list"
+            int
     Declarator:
         Identifier: "reverse_list"
         Function Suffix:
-            Has ellipsis: 0
             Parameters:
                 Declaration:
                     Specifiers:
                         Type Specifiers:
-                            Typedef: "list"
+                            int
                     Parameter Declarator:
                         Identifier: "curr"
-                            Pointer:
-                                *Ptr
                 Declaration:
                     Specifiers:
                         Type Specifiers:
                             int
                     Parameter Declarator:
                         Identifier: "is_first"
-            Pointer:
-                *Ptr
     Body:
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    Typedef: "list"
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "new_head"
-                        Pointer:
-                            *Ptr
-                Initializer:
-                    Ternary Expression
-                    Condition:
-                        Pointer Member Access
-                        Item:
-                            Identifier: "curr"
-                        Member: "next"
-                    First:
-                        Function Call
-                        Function:
-                            Identifier: "reverse_list"
-                        Arguments:
-                            Argument List:
-                                Expression:
-                                    Pointer Member Access
-                                    Item:
-                                        Identifier: "curr"
-                                    Member: "next"
-                                Expression:
-                                    Constant: "0"
-                    Second:
-                        Identifier: "curr"
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "f"
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                        Pointer:
-                            *Ptr
-                    Function Suffix:
-                        Has ellipsis: 0
-                        Parameters:
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        int
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        double
-                        Pointer:
-                            *Ptr
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "a"
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                        Pointer:
-                            *Ptr
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    Struct "a":
-                        Declaration:
-                            Specifiers:
-                                Type Specifiers:
-                                    int
-                            Declarators:
-                                Declarator:
-                                    Identifier: "b"
-                                Bit field: None
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "c"
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "b"
-                    Array Suffix:
-                        Size:
-                            Constant: "4"
-                Initializer: None
-        Statement:
-            Expression:
-                Function Call
-                Function:
-                    Identifier: "func"
-                Arguments:
-                    Argument List:
-                        Expression:
-                            Identifier: "b"
 

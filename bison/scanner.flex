@@ -10,11 +10,8 @@ static int check_type();
 
 D			[0-9]
 L			[a-zA-Z_]
-H			[a-fA-F0-9]
-E			([Ee][+-]?{D}+)
-P           ([Pp][+-]?{D}+)
-FS			(f|F|l|L)
-IS          ((u|U)|(u|U)?(l|L|ll|LL)|(l|L|ll|LL)(u|U))
+FS			(f|F|d|D)
+IS          ((u|U)?(l|L|ll|LL|s|S)?)
 WS          [ \t\v\n\f]
 
 %option nounput
@@ -72,32 +69,17 @@ WS          [ \t\v\n\f]
 
 {L}({L}|{D})*		        { yylval.sval = strdup(yytext); return check_type(); }
 
-0[xX]{H}+{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
-0[0-7]*{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
+[1-9]{D}*(p|P)              { yylval.sval = strdup(yytext); return CONST_PTR; }
+
 [1-9]{D}*{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
-(U|u)'\\.'	                { yylval.sval = strdup(yytext); return CONST_INT; }
+(U|u)?'\\.'	                { yylval.sval = strdup(yytext); return CONST_INT; }
 
-{D}+{E}{FS}?		        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
-{D}*"."{D}+{E}?{FS}?	    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
-{D}+"."{D}*{E}?{FS}?	    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
-0[xX]{H}+{P}{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
-0[xX]{H}*"."{H}+{P}{FS}?    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
-0[xX]{H}+"."{H}*{P}{FS}?    { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+{D}*"."{D}+{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+{D}+"."{D}*{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 
-
-L?\"(\\.|[^\\"\n])*\"	    { yylval.sval = strdup(yytext); return STR_LITERAL; }
+\"(\\.|[^\\"\n])*\"	        { yylval.sval = strdup(yytext); return STR_LITERAL; }
 
 "..."			            { return ELLIPSIS; }
-">>="			            { return RSHIFT_ASSIGN; }
-"<<="			            { return LSHIFT_ASSIGN; }
-"+="			            { return ADD_ASSIGN; }
-"-="			            { return SUB_ASSIGN; }
-"*="			            { return MUL_ASSIGN; }
-"/="			            { return DIV_ASSIGN; }
-"%="			            { return MOD_ASSIGN; }
-"&="			            { return AND_ASSIGN; }
-"^="			            { return XOR_ASSIGN; }
-"|="			            { return OR_ASSIGN; }
 ">>"			            { return RSHIFT; }
 "<<"			            { return LSHIFT; }
 "++"			            { return INCREMENT; }

@@ -13,12 +13,6 @@ void set_func_name(char *name);
 void func_ended();
 char *func_name();
 
-// For determining whether or not a function is declared with ellipsis in it params
-// Uses a stack because parameter lists can be nested
-// This is the alternative to simply making a "param_type_list" struct, but this gives a cleaner AST
-void set_param_ellipsis(bool val);
-bool check_param_ellipsis();
-
 /*
     Takes a declarator and traverses the tree until an id is found, and returns that id
     Returns NULL if there is none (meaning the declarator is abstract)

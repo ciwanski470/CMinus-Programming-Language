@@ -3,6 +3,9 @@
 #include "parser_symbols.h"
 #include "parser_helpers.h"
 #include "parser.h"
+#include "sem_analysis.h"
+#include "semantic_symtab.h"
+#include "error_handling.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,6 +18,10 @@ int main(int argc, char *argv[]) {
         perror("No program specified");
         exit(1);
     }
+    if (argc > 2) {
+        perror("Can only compile one program");
+        exit(1);
+    }
 
     yyin = fopen(argv[1], "r");
     yydebug = 0;
@@ -23,16 +30,16 @@ int main(int argc, char *argv[]) {
     fflush(stdout);
     
     sym_push_scope();
-    int success = yyparse();
+    int parse_success = yyparse();
     sym_pop_scope();
 
     printf("Finished parsing\n");
     fflush(stdout);
 
-    if (success == 1) {
+    if (parse_success == 1) {
         perror("Syntax error; could not successfully parse program");
-        exit(1);
-    } else if (success == 2) {
+        exit(0);
+    } else if (parse_success == 2) {
         perror("Error: ran out of memory while parsing");
         exit(1);
     }
@@ -46,6 +53,13 @@ int main(int argc, char *argv[]) {
     print_ast(ast_root, "output.ast");
     printf("Printed AST\n");
     fflush(stdout);
+
+    sem_push_scope();
+    bool sem_success = traverse_ast(ast_root);
+    sem_pop_scope();
+
+    printf("%d errors generated\n", error_count);
+    if (error_count > 0) exit(0);
 
     exit(0);
 }

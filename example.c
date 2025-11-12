@@ -1,14 +1,8 @@
-typedef struct list {
-    int val;
-    struct list *next;
-} list;
+//int *a;
 
-void func(int a[8]) {
-
-}
-
-list *reverse_list(list *curr, int is_first) {
-    list *new_head = (curr->next) ? reverse_list(curr->next, 0) : curr;
+int reverse_list(int curr, int is_first) {
+    /*
+    int *new_head = (curr) ? reverse_list(curr, 0) : curr;
 
     int (*(*f[8])(int, double))[8];
 
@@ -24,4 +18,5 @@ list *reverse_list(list *curr, int is_first) {
     for (int i=0; i<4; i++) {
         b[i] = i;
     }
+    */
 }

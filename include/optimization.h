@@ -5,10 +5,11 @@
 #pragma once
 
 #include "ast.h"
+#include <stdlib.h>
 
-struct fold_result {
-    expr *res;
-    bool success;
-};
-
-struct fold_result *fold_constants(expr *e);
+/*
+    Returns true if constants are successfully folded and false otherwise
+    Note: ONLY works if the types of each expr is filled in using sem_type_t *type_of_expr(expr *e)
+    Assumes the expression is valid
+*/
+bool fold_constants(expr *e);

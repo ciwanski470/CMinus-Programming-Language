@@ -22,7 +22,7 @@
 
 typedef struct switch_entry {
     int case_val;
-    struct switch_entry_t *next;
+    struct switch_entry *next;
 } switch_entry_t;
 
 typedef struct switch_state {
@@ -75,14 +75,12 @@ static bool add_case(expr *e) {
     }
     free_sem_type(case_type);
 
-    struct fold_result *res = fold_constants(e);
-    if (!res->success) {
+    if (!fold_constants(e)) {
         push_error("*** case must be of a constant type");
         return false;
     }
-    e = res->res;
 
-    int val = e->extra.const_val->int_val;
+    int val = e->extra.const_val->val.i_val;
     int hash = val % HASH_SIZE; // maybe replace this with a better hash
 
     for (switch_entry_t *entry = state->switch_state->cases[hash]; entry; entry = entry->next) {
@@ -108,7 +106,7 @@ static bool add_case(expr *e) {
 static bool process_init_compatibility(sem_type_t *type, initializer *init);
 static bool process_decl(decl *dcl, scope_kind scope);
 static bool validate_func_header(func_def *func);
-static bool validate_expr(expr **e);
+static bool validate_expr(expr *e);
 static bool process_statement(stmt *s);
 static bool traverse_block_list(block_list *block);
 
@@ -123,7 +121,7 @@ static bool process_init_compatibility(sem_type_t *type, initializer *init) {
         return false;
     }
 
-    if (!validate_expression(init->assignment)) {
+    if (!validate_expr(init->assignment)) {
         return false;
     }
 
@@ -197,7 +195,7 @@ static bool process_decl(decl *dcl, scope_kind scope) {
             }
 
             bool tentative = (scope == SEM_SCOPE_FILE && !init);
-            sem_symbol_t *sym = sem_declare_id(d->id, type, tentative, scope);
+            sem_symbol_t *sym = sem_declare_id(d->id, type, tentative, (bool) init);
             if (!sym) {
                 push_error("*** invalid redefinition of a variable");
                 success = false;
@@ -206,7 +204,7 @@ static bool process_decl(decl *dcl, scope_kind scope) {
     } else {
         sem_type_t *type = decl_type(specs, dcl->param_decltr, true);
         if (!type) return false;
-        sem_declare_id(dcl->param_decltr->id, type, false, SEM_SCOPE_PARAM);
+        sem_declare_id(dcl->param_decltr->id, type, false, false);
     }
 
     return success;
@@ -236,13 +234,12 @@ static bool validate_func_header(func_def *func) {
     return true;
 }
 
-static bool validate_expr(expr **e) {
-    sem_type_t *expr_type = type_of_expr(*e);
+static bool validate_expr(expr *e) {
+    sem_type_t *expr_type = type_of_expr(e);
     if (!expr_type) return false;
     free_sem_type(expr_type);
 
-    struct fold_result *res = fold_constants(*e);
-    (*e) = res->res;
+    fold_constants(e);
 
     return true;
 }
@@ -277,7 +274,7 @@ static bool process_statement(stmt *s) {
 
     switch (s->kind) {
         case STMT_EXPR:
-            if (!validate_expr(&s->expr_stmt)) {
+            if (!validate_expr(s->expr_stmt)) {
                 return false;
             }
             break;
@@ -295,7 +292,7 @@ static bool process_statement(stmt *s) {
                 success = false;
             }
 
-            s->conditional_stmt.cond = fold_constants(s->conditional_stmt.cond)->res;
+            fold_constants(s->conditional_stmt.cond);
             free_sem_type(type);
 
             assign_success(process_statement(s->conditional_stmt.body))
@@ -314,7 +311,7 @@ static bool process_statement(stmt *s) {
                 success = false;
             }
 
-            s->conditional_stmt.cond = fold_constants(s->conditional_stmt.cond)->res;
+            fold_constants(s->conditional_stmt.cond);
             free_sem_type(type);
 
             bool temp_in_loop = state->in_loop;
@@ -328,11 +325,11 @@ static bool process_statement(stmt *s) {
             if (s->for_stmt.kind == FOR_DECL) {
                 assign_success(process_decl(s->for_stmt.init.decl, SEM_SCOPE_BLOCK))
             } else {
-                assign_success(validate_expression(s->for_stmt.init.expr))
+                assign_success(validate_expr(s->for_stmt.init.expr))
             }
 
-            assign_success(validate_expression(s->for_stmt.cond))
-            assign_success(validate_expression(s->for_stmt.update))
+            assign_success(validate_expr(s->for_stmt.cond))
+            assign_success(validate_expr(s->for_stmt.update))
 
             bool temp_in_loop = state->in_loop;
             state->in_loop = true;
@@ -393,13 +390,36 @@ static bool process_statement(stmt *s) {
                 push_error("*** return statement must be placed inside function");
                 return false;
             }
-            if (!validate_expression(s->return_stmt.result)) {
+            if (!validate_expr(s->return_stmt.result)) {
                 success = false;
-            } else if (types_parsable(s->return_stmt.result, state->func_return) == PARSE_ILLEGAL) {
+            } else if (expr_compatible(s->return_stmt.result, state->func_return)) {
                 push_error("*** type returned by return statement not compatible with return type");
                 success = false;
             }
             break;
+        case STMT_PRINT_EXPR: {
+            sem_type_t *type = type_of_expr(s->print_stmt.item);
+            if (
+                (type->kind != ST_ARRAY || type->arr_info.element_type->kind != ST_CHAR) &&
+                (type->kind != ST_POINTER || type->ptr_target->kind != ST_CHAR)
+            ) {
+                push_error("*** type of an expression print statement must be pointer to char or array of char");
+                success = false;
+            }
+            if (!fill_const_val(s->print_stmt.size, make_primitive_type(ST_SHORT, false, 0))) {
+                push_error("*** print statement size is an invalid constant");
+                success = false;
+            }
+            break;
+        }
+        case STMT_FREE: {
+            if (type_of_expr(s->free_stmt.item)->kind != ST_POINTER) {
+                push_error("*** only allowed to free pointer types");
+                success = false;
+            }
+            return success;
+        }
+        default:;
     }
 
     return success;
@@ -440,20 +460,27 @@ bool traverse_ast(translation_unit *ast) {
                 continue;
             }
 
-            if (sem_lookup_id(func->decltr->id)) {
+            sem_symbol_t *sym = sem_lookup_id(func->decltr->id);
+            if (sym->type->kind != ST_FUNC) {
+                push_error("*** function definition may not use a non-function identifier as a name");
+                success = false;
+                continue;
+            }
+
+            if (sym->is_definition) {
                 push_error("*** redefinition of function not allowed");
                 success = false;
                 continue;
             }
 
             sem_type_t *func_type = decl_type(func->specs, func->decltr, false);
-            sem_declare_id(func->decltr->id, func_type, false, SEM_SCOPE_FILE);
+            sem_declare_id(func->decltr->id, func_type, false, true);
             
             // Handle parameters
             // In a function definition, the second part of the declarator contains the parameters
             sem_push_scope();
             for (param_list *param = func->decltr->next->func.params; param; param = param->next) {
-                success = process_decl(param->param_decl, SEM_SCOPE_PARAM);
+                success = success && process_decl(param->param_decl, SEM_SCOPE_PARAM);
             }
 
             // Push body scope and handle body
@@ -465,8 +492,23 @@ bool traverse_ast(translation_unit *ast) {
 
             sem_pop_scope();
             sem_pop_scope();
+
+            // Check if the function is void; if not, check for a return statement
+            if (
+                !types_equal(
+                    func_type->func_info.return_type,
+                    make_primitive_type(ST_VOID, false, 0)
+                )
+            ) continue;
+
+            block_list *bl = func->body->compound_stmt.items;
+            while (bl->next) bl = bl->next;
+            if (bl->stmt->kind != STMT_RETURN) {
+                push_error("*** non-void function must end with a return statement");
+                success = false;
+            }
         }
     }
 
-    return success;
+    return success && error_count == 0;
 }

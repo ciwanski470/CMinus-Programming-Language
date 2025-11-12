@@ -15,7 +15,7 @@ void sem_pop_scope(void);
 
 // Declare and define variables and functions
 
-sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, bool is_tentative, scope_kind scope);
+sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, bool is_tentative, bool is_definition);
 
 // Define enum constants
 
@@ -39,8 +39,8 @@ sem_symbol_t *sem_lookup_tag(const char *name);
 sem_symbol_t *sem_lookup_typedef(const char *name);
 sem_symbol_t *sem_lookup_label(const char *name);
 
-void sem_resolve_tentatives(void);
+//void sem_resolve_tentatives(void);
 
 // Free symbol
 
-void free_symbol(sem_symbol_t **psym);
+void free_symbol(sem_symbol_t *sym);

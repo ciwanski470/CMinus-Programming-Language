@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 139 "bison/parser.yacc"
+#line 141 "bison/parser.yacc"
 
     #include "ast.h"
 
@@ -83,50 +83,56 @@ extern int yydebug;
     UNION = 278,                   /* UNION  */
     PRINT = 279,                   /* PRINT  */
     MALLOC = 280,                  /* MALLOC  */
-    CHAR = 281,                    /* CHAR  */
-    INT = 282,                     /* INT  */
-    SHORT = 283,                   /* SHORT  */
-    LONG = 284,                    /* LONG  */
-    FLOAT = 285,                   /* FLOAT  */
-    DOUBLE = 286,                  /* DOUBLE  */
-    BOOL = 287,                    /* BOOL  */
-    VOID = 288,                    /* VOID  */
-    SIGNED = 289,                  /* SIGNED  */
-    UNSIGNED = 290,                /* UNSIGNED  */
-    CONST = 291,                   /* CONST  */
-    RESTRICT = 292,                /* RESTRICT  */
-    VOLATILE = 293,                /* VOLATILE  */
-    ADD_ASSIGN = 294,              /* ADD_ASSIGN  */
-    SUB_ASSIGN = 295,              /* SUB_ASSIGN  */
-    MUL_ASSIGN = 296,              /* MUL_ASSIGN  */
-    DIV_ASSIGN = 297,              /* DIV_ASSIGN  */
-    MOD_ASSIGN = 298,              /* MOD_ASSIGN  */
-    AND_ASSIGN = 299,              /* AND_ASSIGN  */
-    OR_ASSIGN = 300,               /* OR_ASSIGN  */
-    XOR_ASSIGN = 301,              /* XOR_ASSIGN  */
-    LSHIFT_ASSIGN = 302,           /* LSHIFT_ASSIGN  */
-    RSHIFT_ASSIGN = 303,           /* RSHIFT_ASSIGN  */
-    INCREMENT = 304,               /* INCREMENT  */
-    DECREMENT = 305,               /* DECREMENT  */
-    AND = 306,                     /* AND  */
-    OR = 307,                      /* OR  */
-    LSHIFT = 308,                  /* LSHIFT  */
-    RSHIFT = 309,                  /* RSHIFT  */
-    EQUAL = 310,                   /* EQUAL  */
-    NOT_EQUAL = 311,               /* NOT_EQUAL  */
-    LEQ = 312,                     /* LEQ  */
-    GEQ = 313,                     /* GEQ  */
-    ARROW = 314,                   /* ARROW  */
-    ELLIPSIS = 315,                /* ELLIPSIS  */
-    IDENTIFIER = 316,              /* IDENTIFIER  */
-    TYPEDEF_NAME = 317,            /* TYPEDEF_NAME  */
-    ENUM_CONST = 318,              /* ENUM_CONST  */
-    CONST_INT = 319,               /* CONST_INT  */
-    CONST_FLOAT = 320,             /* CONST_FLOAT  */
-    STR_LITERAL = 321,             /* STR_LITERAL  */
-    FUNC_NAME = 322,               /* FUNC_NAME  */
-    SIZEOF = 323,                  /* SIZEOF  */
-    NO_ELSE = 324                  /* NO_ELSE  */
+    FREE = 281,                    /* FREE  */
+    CHAR = 282,                    /* CHAR  */
+    INT = 283,                     /* INT  */
+    SHORT = 284,                   /* SHORT  */
+    LONG = 285,                    /* LONG  */
+    FLOAT = 286,                   /* FLOAT  */
+    DOUBLE = 287,                  /* DOUBLE  */
+    BOOL = 288,                    /* BOOL  */
+    VOID = 289,                    /* VOID  */
+    SIGNED = 290,                  /* SIGNED  */
+    UNSIGNED = 291,                /* UNSIGNED  */
+    CONST = 292,                   /* CONST  */
+    RESTRICT = 293,                /* RESTRICT  */
+    VOLATILE = 294,                /* VOLATILE  */
+    ADD_ASSIGN = 295,              /* ADD_ASSIGN  */
+    SUB_ASSIGN = 296,              /* SUB_ASSIGN  */
+    MUL_ASSIGN = 297,              /* MUL_ASSIGN  */
+    DIV_ASSIGN = 298,              /* DIV_ASSIGN  */
+    MOD_ASSIGN = 299,              /* MOD_ASSIGN  */
+    AND_ASSIGN = 300,              /* AND_ASSIGN  */
+    OR_ASSIGN = 301,               /* OR_ASSIGN  */
+    XOR_ASSIGN = 302,              /* XOR_ASSIGN  */
+    LSHIFT_ASSIGN = 303,           /* LSHIFT_ASSIGN  */
+    RSHIFT_ASSIGN = 304,           /* RSHIFT_ASSIGN  */
+    INCREMENT = 305,               /* INCREMENT  */
+    DECREMENT = 306,               /* DECREMENT  */
+    AND = 307,                     /* AND  */
+    OR = 308,                      /* OR  */
+    LSHIFT = 309,                  /* LSHIFT  */
+    RSHIFT = 310,                  /* RSHIFT  */
+    EQUAL = 311,                   /* EQUAL  */
+    NOT_EQUAL = 312,               /* NOT_EQUAL  */
+    LEQ = 313,                     /* LEQ  */
+    GEQ = 314,                     /* GEQ  */
+    ARROW = 315,                   /* ARROW  */
+    ELLIPSIS = 316,                /* ELLIPSIS  */
+    IDENTIFIER = 317,              /* IDENTIFIER  */
+    TYPEDEF_NAME = 318,            /* TYPEDEF_NAME  */
+    ENUM_CONST = 319,              /* ENUM_CONST  */
+    CONST_CHAR = 320,              /* CONST_CHAR  */
+    CONST_SHORT = 321,             /* CONST_SHORT  */
+    CONST_INT = 322,               /* CONST_INT  */
+    CONST_LONG = 323,              /* CONST_LONG  */
+    CONST_FLOAT = 324,             /* CONST_FLOAT  */
+    CONST_DOUBLE = 325,            /* CONST_DOUBLE  */
+    CONST_PTR = 326,               /* CONST_PTR  */
+    STR_LITERAL = 327,             /* STR_LITERAL  */
+    FUNC_NAME = 328,               /* FUNC_NAME  */
+    SIZEOF = 329,                  /* SIZEOF  */
+    NO_ELSE = 330                  /* NO_ELSE  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -135,7 +141,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 48 "bison/parser.yacc"
+#line 49 "bison/parser.yacc"
 
     char *sval;
     int int_val;
@@ -163,7 +169,7 @@ union YYSTYPE
     ext_decl *ext_decl;
     func_def *func_def;
 
-#line 167 "parser.h"
+#line 173 "parser.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

@@ -230,7 +230,7 @@ pointer *make_pointer(type_qual_list *quals, pointer *curr) {
     check_alloc_error(new_ptr, "Alloc error when creating new pointer (struct)");
 
     new_ptr->type_quals = quals;
-    curr->next = new_ptr;
+    if (curr) curr->next = new_ptr;
 
     return new_ptr;
 }
@@ -254,7 +254,7 @@ decltr *make_id_decltr(char *id) {
     decltr *new_decltr = alloc_decltr();
 
     new_decltr->kind = DCTR_ID;
-    new_decltr->id = id ? strdup(id) : 0;
+    new_decltr->id = strdup(id);
 
     return new_decltr;
 }
@@ -285,6 +285,7 @@ void add_pointer(pointer *ptr, decltr *decltr) {
         perror("Error trying to add pointer to null decltr");
         return;
     }
+
     if (!decltr->ptr) {
         decltr->ptr = ptr;
         return;
@@ -673,6 +674,46 @@ translation_unit *make_trans_unit(translation_unit *prev, ext_decl *curr) {
     new_trans_unit->next = prev;
 
     return new_trans_unit;
+}
+
+/*
+    --------- Freeing Memory ---------
+*/
+
+void free_expr(expr *e) {
+    if (!e) return;
+
+    switch (e->kind) {
+        case EXPR_MEMBER_DOT: case EXPR_MEMBER_ARROW: case EXPR_ID:
+            free(e->extra.id);
+            break;
+        case EXPR_CONST:
+            free(e->extra.const_val->value);
+            free(e->extra.const_val);
+            break;
+        case EXPR_STR_LITERAL:
+            free(e->extra.str_val);
+            break;
+        case EXPR_CONDITIONAL:
+            free(e->extra.conditional);
+            break;
+        case EXPR_CAST: case EXPR_SIZEOF_TYPE:
+            free_type_name(e->extra.type);
+            break;
+        case EXPR_INIT_LIST:
+            free_type_name(e->extra.type);
+            // free_init_list(e->extra.init);
+            break;
+        default:;
+    }
+
+    free_expr(e->left);
+    free_expr(e->right);
+    free(e);
+}
+
+void free_type_name(type_name *tn) {
+    // NOTE: FINISH LATER
 }
 
 /*

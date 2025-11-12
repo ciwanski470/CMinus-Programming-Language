@@ -183,6 +183,9 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
             // Will get a definition later when type is forced to be completed
             if (!sym) {
                 sym = sem_declare_tag(sou->name, (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION);
+                if (!sym) {
+                    push_error("*** tag name already taken");
+                }
             }
             sem_type_t *new_type = alloc_sem_type();
             new_type->kind = sym->type->kind;
@@ -201,7 +204,6 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
     // Check for numeric types
     bool is_signed = true;
     int long_count = 0;
-    bool saw_short = false;
 
     sem_type_kind primary = ST_INT;
 
@@ -216,20 +218,18 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
             case TS_DOUBLE:     primary = ST_DOUBLE; break;
             case TS_BOOL:       primary = ST_BOOL; break;
             case TS_LONG:       long_count++; break;
-            case TS_SHORT:      saw_short = true; break;
+            case TS_SHORT:      primary = ST_SHORT; break;
             case TS_UNSIGNED:   is_signed = false; break;
             default:;
         }
     }
 
     if (long_count == 1) {
-        if (primary == ST_DOUBLE) {
-            primary = ST_LDOUBLE;
-        }
         primary = ST_LONG;
     } else if (long_count == 2) {
         primary = ST_LL;
     }
+    
     return make_primitive_type(primary, is_signed, quals);
 }
 
@@ -238,7 +238,7 @@ static sem_type_t *construct_pointer_chain(pointer *ptr) {
     sem_type_t *head = NULL;
 
     while (ptr) {
-        sem_type_t *curr = make_pointer_type(make_qual_mask(ptr->type_quals));
+        sem_type_t *curr = make_pointer_type(NULL, make_qual_mask(ptr->type_quals));
 
         if (!head) {
             head = curr;
@@ -259,7 +259,7 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
 
     if (is_param) {
         // Array parameters are automatically converted into regular pointers
-        return make_pointer_type(d->array.quals);
+        return make_pointer_type(NULL, make_qual_mask(d->array.quals));
     }
 
     // Non-parameter array declarations are actual arrays
@@ -269,25 +269,24 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
         return make_array_type(NULL, 0, true);
     }
 
-    struct fold_result *const_fold = fold_constants(d->array.size);
-    if (!const_fold->success) {
+    if (!fold_constants(d->array.size)) {
         push_error("*** non-constant array size not allowed");
         return NULL;
     }
 
-    constant *const_val = const_fold->res->extra.const_val;
+    constant *const_val = d->array.size->extra.const_val;
     if (const_val->kind != CONSTANT_INT) {
         push_error("*** non-integer constant array size not allowed");
         return NULL;
     }
 
     // This condition may have to change when struct constant is changed
-    if (const_val->int_val <= 0) {
+    if (const_val->val.i_val <= 0) {
         push_error("*** array size must be a positive integer");
         return NULL;
     }
 
-    return make_array_type(NULL, const_val->int_val, false);
+    return make_array_type(NULL, const_val->val.i_val, false);
 }
 
 static sem_type_list_t *make_parameter_type_list(param_list *params) {
@@ -331,10 +330,11 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
             case DCTR_ARRAY:
                 curr = process_array_declarator(d, is_param);
                 break;
-            case DCTR_FUNC:
+            case DCTR_FUNC: {
                 sem_type_list_t *params = make_parameter_type_list(d->func.params);
                 curr = make_func_type(NULL, params);
                 break;
+            }
             default:;
         }
 
@@ -381,7 +381,7 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
     return head;
 }
 
-static bool validate_type(sem_type_t *type, bool is_param) {
+static bool validate_type(sem_type_t *type) {
     if (!type) return false;
 
     while (type) {
@@ -398,7 +398,7 @@ static bool validate_type(sem_type_t *type, bool is_param) {
                 }
                 type = element;
                 break;
-            case ST_FUNC:
+            case ST_FUNC: {
                 sem_type_t *ret = type->func_info.return_type;
                 if (!ret) {
                     push_error("*** function must have return type");
@@ -414,6 +414,7 @@ static bool validate_type(sem_type_t *type, bool is_param) {
                 }
                 type = ret;
                 break;
+            }
             case ST_POINTER:
                 type = type->ptr_target;
                 break;
@@ -433,7 +434,7 @@ sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param) {
     sem_type_t *base = type_from_decl_specs(specs);
     sem_type_t *final = apply_decltr_chain(d, base, is_param);
 
-    if (!validate_type(final, is_param)) {
+    if (!validate_type(final)) {
         free_sem_type(final);
         free_sem_type(base);
         return NULL;

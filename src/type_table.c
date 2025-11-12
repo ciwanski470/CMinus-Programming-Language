@@ -55,10 +55,6 @@ size_t id_of_union(const char *name) {
     return search_id(name, TTABLE_UNION);
 }
 
-size_t id_of_typedef(const char *name) {
-    return search_id(name, TTABLE_TYPEDEF);
-}
-
 sem_type_t *get_type_info(size_t id) {
     return (id < next_id) ? types[id] : NULL;
 }
@@ -71,19 +67,15 @@ static size_t push_type(sem_type_t *type, const char *name, ttable_entry_kind ki
     // Search the current scope for matches
     for (type_entry_t *entry = curr_scope->buckets[hash]; entry; entry = entry->next) {
         if (strcmp(name, entry->name) == 0) {
-            if (
-                (entry->kind == TTABLE_STRUCT && kind == TTABLE_UNION) ||
-                (entry->kind == TTABLE_UNION && kind == TTABLE_STRUCT)
-            ) return SIZE_MAX;
-
-            if (entry->kind != kind) continue;
+            if (entry->kind != kind) return SIZE_MAX;
 
             // Has a valid match
             if (entry->defined && type) {
                 return SIZE_MAX;
             } else if (type) {
-                free_sem_type(types[entry->id]); // Likely not needed
-                types[entry->id] = type;
+                // Add the sou_info to the type
+                types[entry->id]->sou_info = type->sou_info;
+                entry->defined = true;
             } else {
                 return entry->id;
             }
@@ -115,11 +107,8 @@ static size_t push_type(sem_type_t *type, const char *name, ttable_entry_kind ki
 size_t ttable_push_sou(sou_spec *sou) {
     if (!sou->decls) return SIZE_MAX;
     sem_type_t *sou_type = make_sou_type(sou);
+    if (!sou_type) return SIZE_MAX;
     return push_type(sou_type, sou->name, (sou->kind == SOU_STRUCT) ? TTABLE_STRUCT : TTABLE_UNION);
-}
-
-size_t ttable_push_typedef(sem_type_t *type, const char *name) {
-    return push_type(type, name, TTABLE_TYPEDEF);
 }
 
 size_t ttable_reserve_entry(const char *name, ttable_entry_kind kind) {
@@ -141,12 +130,4 @@ void ttable_pop_scope(void) {
             free(temp);
         }
     }
-}
-
-void free_type_data(void) {
-    // Note that next_id is equivalent to the array length
-    for (int i=0; i<next_id; i++) {
-        free_sem_type(&types[i]);
-    }
-    free(types);
 }

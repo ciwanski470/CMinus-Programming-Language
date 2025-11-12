@@ -277,16 +277,6 @@ assignment_expression
 
 assignment_operator
 	: '='           { $$ = EXPR_ASSIGN; }
-	| MUL_ASSIGN    { $$ = EXPR_MUL_ASSIGN; }
-	| DIV_ASSIGN    { $$ = EXPR_DIV_ASSIGN; }
-	| MOD_ASSIGN    { $$ = EXPR_MOD_ASSIGN; }
-	| ADD_ASSIGN    { $$ = EXPR_ADD_ASSIGN; }
-	| SUB_ASSIGN    { $$ = EXPR_SUB_ASSIGN; }
-	| LSHIFT_ASSIGN { $$ = EXPR_LSHIFT_ASSIGN; }
-	| RSHIFT_ASSIGN { $$ = EXPR_RSHIFT_ASSIGN; }
-	| AND_ASSIGN    { $$ = EXPR_AND_ASSIGN; }
-	| XOR_ASSIGN    { $$ = EXPR_XOR_ASSIGN; }
-	| OR_ASSIGN     { $$ = EXPR_OR_ASSIGN; }
 	;
 
 expression
@@ -453,8 +443,7 @@ type_qualifier_list
 
 
 parameter_type_list
-	: parameter_list                { set_param_ellipsis(0); $$ = $1; }
-	| parameter_list ',' ELLIPSIS   { set_param_ellipsis(1); $$ = $1; }
+	: parameter_list    { $$ = $1; }
 	;
 
 parameter_list
@@ -566,11 +555,11 @@ jump_statement
 
 print_statement
     : PRINT '(' STR_LITERAL ')' ';'                         { $$ = make_str_print_stmt($3); }
-    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_print_stmt($3, $5); }
+    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_expr_print_stmt($3, make_constant($5)); }
     ;
 
 free_statement
-    : FREE '(' expression ')' ';'   { $$ = make_print_stmt($3); }
+    : FREE '(' expression ')' ';'   { $$ = make_free_stmt($3); }
     ;
 
 translation_unit

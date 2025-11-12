@@ -392,7 +392,6 @@ static void print_decltr(decltr *dctr) {
             case DCTR_FUNC:
                 ast_write("Function Suffix:\n");
                 indents++;
-                ast_write("Has ellipsis: %d\n", curr->func.has_ellipsis);
                 ast_write("Parameters:\n");
                 print_param_list(curr->func.params);
                 indents--;
@@ -617,7 +616,6 @@ static void print_expr(expr *expr) {
         unary_expr_case(EXPR_PRE_DECR, "Prefix Decrement\n")
         unary_expr_case(EXPR_ADDREF, "Address of\n")
         unary_expr_case(EXPR_DEREF, "Dereference\n")
-        unary_expr_case(EXPR_PLUS, "Plus\n")
         unary_expr_case(EXPR_MINUS, "Minus\n")
         unary_expr_case(EXPR_BITNOT, "Bitwise Not\n")
         unary_expr_case(EXPR_LOGNOT, "Logical Not\n")
@@ -642,19 +640,8 @@ static void print_expr(expr *expr) {
         bin_expr_case(EXPR_BITOR, "Bitwise Or\n")
         bin_expr_case(EXPR_LOGAND, "Logical And\n")
         bin_expr_case(EXPR_LOGOR, "Logical Or\n")
-        bin_expr_case(EXPR_COMMA, "Comma Expression\n")
 
         assignment_expr_case(EXPR_ASSIGN, "Assignment\n")
-        assignment_expr_case(EXPR_MUL_ASSIGN, "Multiplication Assignment\n")
-        assignment_expr_case(EXPR_DIV_ASSIGN, "Divison Assignment\n")
-        assignment_expr_case(EXPR_MOD_ASSIGN, "Modulus Assignment\n")
-        assignment_expr_case(EXPR_ADD_ASSIGN, "Addition Assignment\n")
-        assignment_expr_case(EXPR_SUB_ASSIGN, "Subtraction Assignment\n")
-        assignment_expr_case(EXPR_LSHIFT_ASSIGN, "Left-Shift Assignment\n")
-        assignment_expr_case(EXPR_RSHIFT_ASSIGN, "Right-Shift Assignment\n")
-        assignment_expr_case(EXPR_AND_ASSIGN, "And Assignment\n")
-        assignment_expr_case(EXPR_XOR_ASSIGN, "XOR Assignment\n")
-        assignment_expr_case(EXPR_OR_ASSIGN, "Or Assignment\n")
 
         case EXPR_CALL:
             ast_write("Function Call\n");

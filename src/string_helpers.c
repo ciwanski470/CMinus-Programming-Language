@@ -20,3 +20,4 @@ size_t str_hash(const char *str, const int mod) {
         hash *= FNV_PRIME;
     }
     return hash % mod;
+}
