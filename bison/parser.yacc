@@ -3,14 +3,14 @@
 #include "parser_symbols.h"
 #include "parser_helpers.h"
 #include "ast.h"
+#include "error_handling.h"
 
 translation_unit *ast_root;
 
 int yylex(void);
 
 void yyerror(const char *s) {
-	fflush(stdout);
-	fprintf(stderr, "*** %s\n", s);
+	push_error(s);
 }
 
 %}
@@ -107,7 +107,7 @@ void yyerror(const char *s) {
 %type <sval> string
 
 // Operators
-%type <int_val> unary_operator assignment_operator
+%type <int_val> unary_operator compound_assignment
 
 // Declarations
 %type <decl> declaration parameter_declaration
@@ -272,11 +272,21 @@ conditional_expression
 
 assignment_expression
 	: conditional_expression                                        { $$ = $1; }
-	| unary_expression assignment_operator assignment_expression    { $$ = make_expr($2, $1, $3); }
+	| unary_expression '=' assignment_expression                    { $$ = make_expr(EXPR_ASSIGN, $1, $3); }
+    | unary_expression compound_assignment assignment_expression    { $$ = make_expr(EXPR_ASSIGN, $1, make_expr(EXPR_ADD, $1, $3)); }
 	;
 
-assignment_operator
-	: '='           { $$ = EXPR_ASSIGN; }
+compound_assignment
+	: ADD_ASSIGN    { $$ = EXPR_ADD; }
+    | SUB_ASSIGN    { $$ = EXPR_SUB; }
+    | MUL_ASSIGN    { $$ = EXPR_MUL; }
+    | DIV_ASSIGN    { $$ = EXPR_DIV; }
+    | MOD_ASSIGN    { $$ = EXPR_MOD; }
+    | AND_ASSIGN    { $$ = EXPR_BITAND; }
+    | OR_ASSIGN     { $$ = EXPR_BITOR; }
+    | XOR_ASSIGN    { $$ = EXPR_BITXOR; }
+    | LSHIFT_ASSIGN { $$ = EXPR_LSHIFT; }
+    | RSHIFT_ASSIGN { $$ = EXPR_RSHIFT; }
 	;
 
 expression
@@ -555,7 +565,7 @@ jump_statement
 
 print_statement
     : PRINT '(' STR_LITERAL ')' ';'                         { $$ = make_str_print_stmt($3); }
-    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_expr_print_stmt($3, make_constant($5)); }
+    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_expr_print_stmt($3, make_constant(CONSTANT_INT, $5)); }
     ;
 
 free_statement

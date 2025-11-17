@@ -9,6 +9,7 @@
 #include "optimization.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /*
     Helpers and allocators
@@ -114,12 +115,10 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
         return NULL;
     }
 
-    type_spec_list *tsl = specs->type_specs;
     unsigned short quals = make_qual_mask(specs->type_quals);
 
     // Handle special types (TS_ENUM, TS_TYPEDEF, TS_SOU)
-    tsl = specs->type_specs;
-    for (; tsl; tsl = tsl->next) {
+    for (type_spec_list *tsl = specs->type_specs; tsl; tsl = tsl->next) {
         type_spec *ts = tsl->type;
         if (ts->kind == TS_ENUM) {
             enum_spec *enums = ts->enums;
@@ -206,9 +205,7 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
     int long_count = 0;
 
     sem_type_kind primary = ST_INT;
-
-    // *** NOTE: SHOULD CHANGE TO THROW ERROR FOR INCOMPATIBLE TYPE SPECIFIERS ***
-    for (; tsl; tsl = tsl->next) {
+    for (type_spec_list *tsl = specs->type_specs; tsl; tsl = tsl->next) {
         type_spec_kind kind = tsl->type->kind;
         switch (kind) {
             case TS_VOID:       primary = ST_VOID; break;
@@ -342,20 +339,33 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
         if (!curr && !ptr_chain) {
             d = d->next;
             continue;
-        }
-
-        if (!curr) {
+        } else if (!curr) {
             curr = ptr_chain;
+        } else if (curr && ptr_chain) {
+            switch (curr->kind) {
+                case ST_ARRAY:  curr->arr_info.element_type = ptr_chain; break;
+                case ST_FUNC:   curr->func_info.return_type = ptr_chain; break;
+                default:;
+            }
         }
 
         if (!head) {
             head = curr;
         }
+
         if (prev) {
             switch (prev->kind) {
                 case ST_POINTER:    prev->ptr_target = curr; break;
                 case ST_ARRAY:      prev->arr_info.element_type = curr; break;
                 case ST_FUNC:       prev->func_info.return_type = curr; break;
+                default:;
+            }
+        }
+
+        if (ptr_chain) {
+            switch (curr->kind) {
+                case ST_ARRAY:  curr = curr->arr_info.element_type; break;
+                case ST_FUNC:   curr = curr->func_info.return_type; break;
                 default:;
             }
         }
@@ -378,7 +388,7 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
         }
     }
 
-    return head;
+    return (head) ? head : base;
 }
 
 static bool validate_type(sem_type_t *type) {
@@ -386,7 +396,7 @@ static bool validate_type(sem_type_t *type) {
 
     while (type) {
         switch (type->kind) {
-            case ST_ARRAY:
+            case ST_ARRAY: {
                 sem_type_t *element = type->arr_info.element_type;
                 if (!element || element->kind == ST_VOID) {
                     push_error("*** array void is not allowed");
@@ -398,6 +408,7 @@ static bool validate_type(sem_type_t *type) {
                 }
                 type = element;
                 break;
+            }
             case ST_FUNC: {
                 sem_type_t *ret = type->func_info.return_type;
                 if (!ret) {
@@ -433,7 +444,7 @@ sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param) {
 
     sem_type_t *base = type_from_decl_specs(specs);
     sem_type_t *final = apply_decltr_chain(d, base, is_param);
-
+    
     if (!validate_type(final)) {
         free_sem_type(final);
         free_sem_type(base);

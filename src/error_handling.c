@@ -6,8 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-extern void yyerror(const char *s);
-
 void check_alloc_error(void *ptr, char *message) {
     if (!ptr) {
         perror(message);
@@ -18,7 +16,8 @@ void check_alloc_error(void *ptr, char *message) {
 int error_count = 0;
 
 void push_error(const char *message) {
+    fflush(stdout);
+	fprintf(stderr, "%s\n", message);
     error_count++;
-    yyerror(message);
 }
 

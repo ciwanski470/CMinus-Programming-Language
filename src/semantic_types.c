@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <math.h>
+#include <stdio.h>
 
 // Array to pointers to sem_type_t
 // Whenever a sem_type is allocated, it is added to this list
@@ -177,13 +178,25 @@ void free_all_sem_types(void) {
 }
 
 bool types_equal(sem_type_t *a, sem_type_t *b) {
-    if (a->kind != b->kind) return false;
+    if (!a || !b || a->kind != b->kind) return false;
     
     if (ST_INT <= a->kind && a->kind <= ST_CHAR) { // a and b are integer types
         return a->is_signed == b->is_signed;
     }
 
     if (ST_VOID <= a->kind && a->kind <= ST_BOOL) {
+        return true;
+    }
+
+    if (a->kind == ST_POINTER) {
+        if (!types_equal(a->ptr_target, b->ptr_target)) return false;
+        if (a->quals != b->quals) return false;
+        return true;
+    }
+
+    if (a->kind == ST_ARRAY) {
+        if (!types_equal(a->arr_info.element_type, b->arr_info.element_type)) return false;
+        if (a->arr_info.size != b->arr_info.size) return false;
         return true;
     }
 
@@ -268,8 +281,11 @@ sem_type_t *type_of_expr(expr *e) {
             e->type = sym->type;
             return e->type;
         }
-        case EXPR_CONST:
-            set_return(type_of_const(e->extra.const_val))
+        case EXPR_CONST: {
+            sem_type_t *ct = type_of_const(e->extra.const_val);
+            e->type = ct;
+            return ct;
+        }
         case EXPR_STR_LITERAL: {
             size_t size = size_of_string_lit(e->extra.str_val);
             check_error(size == SIZE_MAX, "*** string is invalid")
@@ -314,7 +330,7 @@ sem_type_t *type_of_expr(expr *e) {
     // Check if the needed left and right exist
     switch (e->kind) {
         // This block all requires both the left and right nodes
-        case EXPR_CALL: case EXPR_SUBSCRIPT: case EXPR_MUL: case EXPR_DIV: case EXPR_MOD:
+        case EXPR_SUBSCRIPT: case EXPR_MUL: case EXPR_DIV: case EXPR_MOD:
         case EXPR_ADD: case EXPR_SUB: case EXPR_LSHIFT: case EXPR_RSHIFT:
         case EXPR_LT: case EXPR_GT: case EXPR_LEQ: case EXPR_GEQ: case EXPR_EQ: case EXPR_NEQ:
         case EXPR_BITAND: case EXPR_BITOR: case EXPR_BITXOR: case EXPR_LOGAND: case EXPR_LOGOR:
@@ -337,7 +353,7 @@ sem_type_t *type_of_expr(expr *e) {
             expr *args = e->right;
             while (params && args) {
                 check_error(
-                    types_parsable(args->type, params->type) != PARSE_IMPLICIT,
+                    types_parsable(args->type, params->type) == PARSE_ILLEGAL,
                     "*** argument and parameter types do not match"
                 )
                 params = params->next;
@@ -347,7 +363,6 @@ sem_type_t *type_of_expr(expr *e) {
             check_error(params, "*** function call has too few arguments")
 
             set_return(left_type->func_info.return_type)
-            break;
         }
         case EXPR_SUBSCRIPT: {
             check_error(!type_is_integral(right_type), "*** cannot index with non-integer value")
@@ -491,7 +506,7 @@ sem_type_t *type_of_expr(expr *e) {
         }
         case EXPR_ASSIGN: {
             bool modifiable = false;
-            switch (e->kind) {
+            switch (e->left->kind) {
                 case EXPR_DEREF: case EXPR_SUBSCRIPT:
                 case EXPR_MEMBER_ARROW: case EXPR_MEMBER_DOT:
                 case EXPR_ID:
@@ -512,10 +527,12 @@ sem_type_t *type_of_expr(expr *e) {
 }
 
 sem_type_t *type_of_const(constant *c) {
+    sem_type_t *ret_type = NULL;
+
     switch (c->kind) {
         case CONSTANT_ENUM:
             // The enum is guaranteed to be defined
-            return make_primitive_type(ST_SHORT, false, 0);
+            set_return(make_primitive_type(ST_SHORT, false, 0))
         case CONSTANT_INT: {
             sem_type_t *new_type = alloc_sem_type();
             const char *s = c->value;
@@ -524,16 +541,14 @@ sem_type_t *type_of_const(constant *c) {
             if (*s == 'u' || *s == 'U') {
                 new_type->kind = ST_CHAR;
                 new_type->is_signed = false;
-                c->val.uc_val = (unsigned char) get_char_val(s);
-                return new_type;
+                set_return(new_type)
             }
 
             // Signed char
             if (*s == '\'') {
                 new_type->kind = ST_CHAR;
                 new_type->is_signed = true;
-                c->val.c_val = (signed char) get_char_val(s);
-                return new_type;
+                set_return(new_type)
             }
 
             // Go to the characters past the digits
@@ -559,13 +574,7 @@ sem_type_t *type_of_const(constant *c) {
             } else {
                 new_type->kind = ST_INT;
             }
-
-            if (fill_const_val(c, new_type)) {
-                return new_type;
-            }
-
-            free_sem_type(new_type);
-            return NULL;
+            set_return(new_type)
         }
         case CONSTANT_FLOAT: {
             sem_type_t *new_type = alloc_sem_type();
@@ -579,27 +588,13 @@ sem_type_t *type_of_const(constant *c) {
                 new_type->kind = ST_DOUBLE;
             }
 
-            if (fill_const_val(c, new_type)) {
-                return new_type;
-            }
-
-            free_sem_type(new_type);
-            return NULL;
+            set_return(new_type)
         }
-        case CONSTANT_PTR: {
-            sem_type_t *new_type = make_pointer_type(make_primitive_type(ST_VOID, false, 0), 0);
-            
-            if (fill_const_val(c, new_type)) {
-                return new_type;
-            }
-
-            free_sem_type(new_type);
-            return NULL;
-        }
+        case CONSTANT_PTR:
+            set_return(make_pointer_type(make_primitive_type(ST_VOID, false, 0), 0))
     }
 
-    // This should never happen but I'm filling it anyway
-    return NULL;
+    return (ret_type && fill_const_val(c, ret_type)) ? ret_type : NULL;
 }
 
 bool fill_const_val(constant *c, sem_type_t *type) {
@@ -608,9 +603,9 @@ bool fill_const_val(constant *c, sem_type_t *type) {
     switch (type->kind) {
         case ST_CHAR:
             if (type->is_signed) {
-                c->val.c_val = c->value[1];
+                c->val.c_val = get_char_val(c->value);
             } else {
-                c->val.uc_val = c->value[2];
+                c->val.uc_val = get_char_val(c->value);
             }
             break;
         case ST_SHORT: {
@@ -648,6 +643,7 @@ bool fill_const_val(constant *c, sem_type_t *type) {
                 }
                 c->val.ui_val = a;
             }
+            break;
         }
         case ST_LONG: case ST_LL: {
             errno = 0;
@@ -668,6 +664,7 @@ bool fill_const_val(constant *c, sem_type_t *type) {
                 }
                 c->val.ul_val = a;
             }
+            break;
         }
         case ST_POINTER: {
             errno = 0;
@@ -679,6 +676,7 @@ bool fill_const_val(constant *c, sem_type_t *type) {
                 return false;
             }
             c->val.p_val = a;
+            break;
         }
         case ST_FLOAT: {
             errno = 0;
@@ -691,6 +689,7 @@ bool fill_const_val(constant *c, sem_type_t *type) {
                 return false;
             }
             c->val.f_val = a;
+            break;
         }
         case ST_DOUBLE: {
             errno = 0;
@@ -703,12 +702,14 @@ bool fill_const_val(constant *c, sem_type_t *type) {
                 return false;
             }
             c->val.d_val = a;
+            break;
         }
         default:
             push_error("*** erm what the sigma");
             return false;
     }
-
+    
+    c->val_filled = true;
     return true;
 }
 
@@ -718,6 +719,10 @@ parse_req expr_compatible(expr *e, sem_type_t *type) {
 
 parse_req types_parsable(sem_type_t *from, sem_type_t *to) {
     if (!from || !to) return PARSE_ILLEGAL;
+
+    if (types_equal(from, to)) {
+        return PARSE_IMPLICIT;
+    }
 
     if (
         (type_is_integral(from) && type_is_integral(to)) ||

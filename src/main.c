@@ -8,6 +8,7 @@
 #include "error_handling.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 extern FILE *yyin;
 extern translation_unit *ast_root;
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     // IMPORTANT NOTE: some things are not reversed
     // Lowkey kinda buggy
-    ast_root = reverse_lists(ast_root, 1);
+    ast_root = reverse_lists(ast_root, true);
     printf("Reversed lists\n");
     fflush(stdout);
 

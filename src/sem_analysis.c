@@ -10,7 +10,9 @@
 #include "error_handling.h"
 #include "type_table.h"
 #include "optimization.h"
+#include "string_helpers.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 /*
     Functions returning bool will return true if no errors are detected and false otherwise
@@ -168,6 +170,13 @@ static bool process_decl(decl *dcl, scope_kind scope) {
             
             sem_type_t *type = decl_type(specs, d, false);
             if (!type) {
+                push_error("*** declaration type invalid");
+                success = false;
+                continue;
+            }
+
+            if (scope != SEM_SCOPE_FILE && type->kind == ST_FUNC) {
+                push_error("*** function declaration only allowed at file scope");
                 success = false;
                 continue;
             }
@@ -237,7 +246,6 @@ static bool validate_func_header(func_def *func) {
 static bool validate_expr(expr *e) {
     sem_type_t *expr_type = type_of_expr(e);
     if (!expr_type) return false;
-    free_sem_type(expr_type);
 
     fold_constants(e);
 
@@ -432,9 +440,9 @@ static bool traverse_block_list(block_list *block) {
 
     for (block_list *blk = block; blk; blk = blk->next) {
         if (blk->kind == BI_DECL) {
-            success = process_decl(blk->decl, SEM_SCOPE_BLOCK);
+            success = success && process_decl(blk->decl, SEM_SCOPE_BLOCK);
         } else {
-            success = process_statement(blk->stmt);
+            success = success && process_statement(blk->stmt);
         }
     }
 
@@ -451,7 +459,7 @@ bool traverse_ast(translation_unit *ast) {
     for (translation_unit *curr_ed = ast; curr_ed; curr_ed = curr_ed->next) {
         if (curr_ed->action->kind == EXT_DECL_SIMPLE) {
             // Handle declaration
-            success = process_decl(curr_ed->action->decl, SEM_SCOPE_FILE);
+            success = success && process_decl(curr_ed->action->decl, SEM_SCOPE_FILE);
         } else {
             // Function definition
             func_def *func = curr_ed->action->func;
@@ -461,13 +469,13 @@ bool traverse_ast(translation_unit *ast) {
             }
 
             sem_symbol_t *sym = sem_lookup_id(func->decltr->id);
-            if (sym->type->kind != ST_FUNC) {
+            if (sym && sym->type->kind != ST_FUNC) {
                 push_error("*** function definition may not use a non-function identifier as a name");
                 success = false;
                 continue;
             }
 
-            if (sym->is_definition) {
+            if (sym && sym->is_definition) {
                 push_error("*** redefinition of function not allowed");
                 success = false;
                 continue;
@@ -495,7 +503,7 @@ bool traverse_ast(translation_unit *ast) {
 
             // Check if the function is void; if not, check for a return statement
             if (
-                !types_equal(
+                types_equal(
                     func_type->func_info.return_type,
                     make_primitive_type(ST_VOID, false, 0)
                 )
@@ -508,6 +516,21 @@ bool traverse_ast(translation_unit *ast) {
                 success = false;
             }
         }
+    }
+
+    // Check for valid main function
+    sem_symbol_t *main_func = sem_lookup_id("main");
+    if (!main_func || !main_func->type || main_func->type->kind != ST_FUNC) {
+        push_error("*** main function not found");
+        return false;
+    }
+    if (main_func->type->func_info.return_type->kind != ST_VOID) {
+        push_error("*** main function must return void");
+        return false;
+    }
+    if (main_func->type->func_info.params) {
+        push_error("*** main function must not have parameters");
+        return false;
     }
 
     return success && error_count == 0;

@@ -1,7 +1,6 @@
-//int *a;
+int a = 0;
 
 int reverse_list(int curr, int is_first) {
-    /*
     int *new_head = (curr) ? reverse_list(curr, 0) : curr;
 
     int (*(*f[8])(int, double))[8];
@@ -18,5 +17,4 @@ int reverse_list(int curr, int is_first) {
     for (int i=0; i<4; i++) {
         b[i] = i;
     }
-    */
 }

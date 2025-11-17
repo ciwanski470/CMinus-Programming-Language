@@ -1,3 +1,13 @@
+Declaration:
+    Specifiers:
+        Type Specifiers:
+            int
+    Declarator-Initializer List:
+        Declarator:
+            Identifier: "a"
+        Initializer:
+            Constant: "0"
+
 Function definition:
     Specifiers:
         Type Specifiers:
@@ -19,4 +29,161 @@ Function definition:
                     Parameter Declarator:
                         Identifier: "is_first"
     Body:
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "new_head"
+                        Pointer:
+                            *Ptr
+                Initializer:
+                    Ternary Expression
+                    Condition:
+                        Identifier: "curr"
+                    First:
+                        Function Call
+                        Function:
+                            Identifier: "reverse_list"
+                        Arguments:
+                            Argument List:
+                                Expression:
+                                    Identifier: "curr"
+                                Expression:
+                                    Constant: "0"
+                    Second:
+                        Identifier: "curr"
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "f"
+                    Array Suffix:
+                        Size:
+                            Constant: "8"
+                        Pointer:
+                            *Ptr
+                    Function Suffix:
+                        Parameters:
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        int
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        double
+                        Pointer:
+                            *Ptr
+                    Array Suffix:
+                        Size:
+                            Constant: "8"
+                Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "a"
+                    Array Suffix:
+                        Size:
+                            Constant: "8"
+                        Pointer:
+                            *Ptr
+                Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "b"
+                    Array Suffix:
+                        Size:
+                            Constant: "4"
+                Initializer: None
+        Statement:
+            Expression:
+                Function Call
+                Function:
+                    Identifier: "func"
+                Arguments:
+                    Argument List:
+                        Expression:
+                            Identifier: "b"
+        Declaration:
+            Specifiers:
+                Storage Class: typedef
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "some_type"
+                        Pointer:
+                            *Ptr
+                    Function Suffix:
+                        Parameters:
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        int
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        int
+                        Pointer:
+                            *Ptr
+                    Array Suffix:
+                        Size:
+                            Constant: "8"
+                Initializer: None
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    Typedef: "some_type"
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "var"
+                    Array Suffix:
+                        Size:
+                            Constant: "10"
+                Initializer: None
+        Statement:
+            For Loop:
+                Init Declaration:
+                    Specifiers:
+                        Type Specifiers:
+                            int
+                    Declarator-Initializer List:
+                        Declarator:
+                            Identifier: "i"
+                        Initializer:
+                            Constant: "0"
+                Condition:
+                    Less Than
+                    Left:
+                        Identifier: "i"
+                    Right:
+                        Constant: "4"
+                Update:
+                    Postfix Increment
+                    Item:
+                        Identifier: "i"
+                Body:
+                    Block List:
+                        Statement:
+                            Expression:
+                                Assignment
+                                Left Value:
+                                    Array Access
+                                    Array:
+                                        Identifier: "b"
+                                    Index:
+                                        Identifier: "i"
+                                Assigned Value:
+                                    Identifier: "i"
 

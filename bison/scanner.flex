@@ -67,15 +67,15 @@ WS          [ \t\v\n\f]
 "bool"			            { return BOOL; }
 "__func__"                  { return FUNC_NAME; }
 
-{L}({L}|{D})*		        { yylval.sval = strdup(yytext); return check_type(); }
-
-[1-9]{D}*(p|P)              { yylval.sval = strdup(yytext); return CONST_PTR; }
-
-[1-9]{D}*{IS}?		        { yylval.sval = strdup(yytext); return CONST_INT; }
 (U|u)?'\\.'	                { yylval.sval = strdup(yytext); return CONST_INT; }
+(0|[1-9]{D}*)(p|P)          { yylval.sval = strdup(yytext); return CONST_PTR; }
 
 {D}*"."{D}+{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 {D}+"."{D}*{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
+
+(0|[1-9]{D}*){IS}?		    { yylval.sval = strdup(yytext); return CONST_INT; }
+
+{L}({L}|{D})*		        { yylval.sval = strdup(yytext); return check_type(); }
 
 \"(\\.|[^\\"\n])*\"	        { yylval.sval = strdup(yytext); return STR_LITERAL; }
 
@@ -97,6 +97,16 @@ WS          [ \t\v\n\f]
 ","			                { return ','; }
 ":"			                { return ':'; }
 "="			                { return '='; }
+"+="                        { return ADD_ASSIGN; }
+"-="                        { return SUB_ASSIGN; }
+"*="                        { return MUL_ASSIGN; }
+"/="                        { return DIV_ASSIGN; }
+"%="                        { return MOD_ASSIGN; }
+"&="                        { return AND_ASSIGN; }
+"|="                        { return OR_ASSIGN; }
+"^="                        { return XOR_ASSIGN; }
+"<<="                       { return LSHIFT_ASSIGN; }
+">>="                       { return RSHIFT_ASSIGN; }
 "("			                { return '('; }
 ")"			                { return ')'; }
 ("["|"<:")		            { return '['; }
@@ -119,7 +129,7 @@ WS          [ \t\v\n\f]
 "\n"                        { yylineno++; }
 {WS}+		                { /* Consume whitespace */ }
 <<EOF>>                     { return 0; }
-.			                { yyerror("Bad character"); }
+.			                { yyerror("*** Bad character"); }
 
 %%
 

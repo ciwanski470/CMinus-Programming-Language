@@ -34,6 +34,7 @@ LDFLAGS =
 all: $(TARGET)
 
 # Build with AddressSanitizer
+asan: CXX = clang
 asan: CXXFLAGS += $(ASAN_FLAGS)
 asan: LDFLAGS += $(ASAN_FLAGS)
 asan: clean $(TARGET)
