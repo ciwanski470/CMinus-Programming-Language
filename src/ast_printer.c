@@ -8,8 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-FILE *file = 0;
-int indents = 0;
+static FILE *file = 0;
+static int indents = 0;
 
 #define TAB_SIZE 4
 

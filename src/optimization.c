@@ -15,7 +15,7 @@ bool fold_constants(expr *e) {
     }
     else return false;
 
-    // All code below is dead code
+    // *** All code below is dead code ***
 
     if (!e || !e->type) return false;
 

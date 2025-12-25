@@ -209,6 +209,8 @@ static bool process_decl(decl *dcl, scope_kind scope) {
                 push_error("*** invalid redefinition of a variable");
                 success = false;
             }
+
+            init_d->type = type;
         }
     } else {
         sem_type_t *type = decl_type(specs, dcl->param_decltr, true);
@@ -515,6 +517,8 @@ bool traverse_ast(translation_unit *ast) {
                 push_error("*** non-void function must end with a return statement");
                 success = false;
             }
+
+            func->type = func_type;
         }
     }
 

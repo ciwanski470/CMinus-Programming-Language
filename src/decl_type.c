@@ -277,13 +277,31 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
         return NULL;
     }
 
-    // This condition may have to change when struct constant is changed
-    if (const_val->val.i_val <= 0) {
-        push_error("*** array size must be a positive integer");
+    if ((~((~0u) | (0ull))) & const_val->val.bits) {
+        push_error("array size must fit in 32 bits");
         return NULL;
     }
 
-    return make_array_type(NULL, const_val->val.i_val, false);
+    // This condition may have to change when struct constant is changed
+    union {
+        uint64_t bits;
+        int s_int;
+        unsigned int u_int;
+    } u;
+    u.bits = const_val->val.bits;
+
+    size_t size;
+    if (d->array.size->type->is_signed) {
+        if (u.s_int <= 0) {
+            push_error("*** array size must be a positive integer");
+            return NULL;
+        }
+        size = u.s_int;
+    } else {
+        size = u.u_int;
+    }
+
+    return make_array_type(NULL, size, false);
 }
 
 static sem_type_list_t *make_parameter_type_list(param_list *params) {

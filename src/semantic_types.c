@@ -234,21 +234,17 @@ bool type_is_scalar(sem_type_t *type) {
 }
 
 bool type_is_integral(sem_type_t *type) {
-    switch (type->kind) {
-        case ST_BOOL: case ST_INT: case ST_CHAR: case ST_SHORT: case ST_LONG: case ST_LL:
-            return true;
-        default:
-            return false;
-    }
+    return
+        type->kind == ST_BOOL ||
+        type->kind == ST_SHORT ||
+        type->kind == ST_INT ||
+        type->kind == ST_CHAR ||
+        type->kind == ST_LONG ||
+        type->kind == ST_LL;
 }
 
 bool type_is_float(sem_type_t *type) {
-    switch (type->kind) {
-        case ST_FLOAT: case ST_DOUBLE:
-            return true;
-        default:
-            return false;
-    }
+    return type->kind == ST_FLOAT || type->kind == ST_DOUBLE;
 }
 
 #define set_return(type) \
@@ -397,7 +393,7 @@ sem_type_t *type_of_expr(expr *e) {
             set_return(member->type)
         }
         case EXPR_POST_INCR: case EXPR_POST_DECR: case EXPR_PRE_INCR: case EXPR_PRE_DECR:
-            check_error(!type_is_integral(left_type), "*** can only increment and decrement integer types")
+            check_error(!type_is_scalar(left_type), "*** can only increment and decrement scalar types")
             set_return(left_type)
         case EXPR_ARG:
             set_return(left_type)
@@ -444,6 +440,7 @@ sem_type_t *type_of_expr(expr *e) {
             set_return(type)
         }
         case EXPR_MUL: case EXPR_DIV: case EXPR_MOD: case EXPR_ADD: case EXPR_SUB:
+            // Note that I did not account for pointer arithmetic
             check_error(
                 !type_is_scalar(left_type) || !type_is_scalar(right_type),
                 "*** arithmetic expression requires two scalar types"

@@ -14,7 +14,7 @@
     --------- Function name ---------
 */
 
-char *curr_func;
+static char *curr_func;
 
 void set_func_name(char *name) {
     size_t len = strlen(name);

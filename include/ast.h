@@ -234,6 +234,7 @@ typedef struct constant {
         float f_val;
         double d_val;
         uintptr_t p_val;
+        u_int64_t bits; // to extract the exact bits during LLVM IR generation
     } val;
 } constant;
 
@@ -392,6 +393,7 @@ typedef struct initializer {
 typedef struct init_decltr {
     struct decltr *decltr;
     struct initializer *init;
+    struct sem_type *type; // To be filled in during semantic analysis
 
     struct init_decltr *next;
 } init_decltr;
@@ -401,7 +403,6 @@ typedef struct decl {
     decl_kind kind;
     struct decl_specs *specs;
     bool decltr_abstract;
-    struct sem_type *type; // To be filled during semantic analysis
     union {
         struct init_decltr *init_decltrs;
         struct decltr *param_decltr;
@@ -492,6 +493,7 @@ typedef struct func_def {
     struct decl_specs *specs;
     struct decltr *decltr;
     struct stmt *body;
+    struct sem_type *type;
 } func_def;
 
 
