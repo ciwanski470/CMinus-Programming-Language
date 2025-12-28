@@ -272,8 +272,6 @@ typedef struct type_name {
 // Initially in reverse order during parsing
 typedef struct struct_decltr_list {
     struct decltr *decltr;
-    struct expr *bits;
-
     struct struct_decltr_list *next;
 } struct_decltr_list;
 
@@ -373,6 +371,7 @@ typedef struct decltr {
 
 
 // Initially in reverse order during parsing
+// Note that this feature does not work because I don't feel like implementing it
 typedef struct init_list {
     struct initializer *init;
 
@@ -557,7 +556,7 @@ sou_spec *make_sou_spec(sou_kind kind, char *name, struct_decl_list *decls);
 struct_decl_list *make_struct_decl_list(decl_specs *specs, struct_decltr_list *decltrs);
 void add_struct_decl(struct_decl_list *prev, struct_decl_list *curr);
 
-struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *bits);
+struct_decltr_list *make_struct_decltr_list(decltr *decltr);
 void add_struct_decltr(struct_decltr_list *prev, struct_decltr_list *curr);
 
 init_decltr *make_init_decltr(decltr *decltr, initializer *init);

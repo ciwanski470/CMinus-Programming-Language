@@ -9,6 +9,7 @@
 #include "error_handling.h"
 #include "decl_type.h"
 #include "type_table.h"
+#include "string_helpers.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
@@ -272,7 +273,7 @@ sem_type_t *type_of_expr(expr *e) {
             sem_symbol_t *sym = sem_lookup_id(e->extra.id);
 
             check_error(!sym, "*** identifier not found")
-            check_error(!resolve_sou_type(sym->type), "*** incomplete sou type is not allowed")
+            check_error(!is_resolved(sym->type), "*** incomplete sou type is not allowed")
 
             e->type = sym->type;
             return e->type;
@@ -753,12 +754,9 @@ size_t size_of_type(sem_type_t *type) {
             return 8;
         case ST_ARRAY:
             return size_of_type(type->arr_info.element_type) * type->arr_info.size;
+        // Highkey don't wanna do it myself
         case ST_UNION: case ST_STRUCT:
-            if (type->sou_info->complete || resolve_sou_type(type)) {
-                return type->sou_info->size;
-            } else {
-                return SIZE_MAX;
-            }
+            return SIZE_MAX;
         case ST_FUNC:
             return SIZE_MAX;
     }
@@ -817,7 +815,7 @@ int get_char_val(const char *s) {
     return (us) ? u.uc : u.sc;
 }
 
-bool resolve_sou_type(sem_type_t *sou_type) {
+bool is_resolved(sem_type_t *sou_type) {
     return sou_type->kind != ST_STRUCT && sou_type->kind != ST_UNION;
 
     // Non-SoUs are resolved by default
@@ -842,8 +840,72 @@ sem_type_t *make_sou_type(sou_spec *sou) {
     return NULL; // For now, all SoUs are invalid
 
     sem_sou_info_t *info = alloc_sou_info();
+    sem_member_t *prev_member = NULL;
 
-    /*
-        COMPLETE LATER
-    */
+    // Quick hash table
+    struct entry {
+        char *id;
+        struct entry *next;
+    };
+    struct entry *ids[31];
+
+    bool valid = true;
+
+    for (struct_decl_list *d = sou->decls; d; d = d->next) {
+        for (struct_decltr_list *dctr = d->decltrs; dctr; dctr = dctr->next) {
+            // Check for duplicate ids
+            size_t hash = str_hash(dctr->decltr->id, 31);
+            for (struct entry *curr = ids[hash]; curr; curr = curr->next) {
+                if (strcmp(curr->id, dctr->decltr->id) == 0) {
+                    valid = false;
+                    goto early_break;
+                }
+            }
+
+            sem_type_t *member_type = decl_type(d->specs, dctr->decltr, false);
+            if (!member_type) {
+                valid = false;
+                goto early_break;
+            }
+
+            sem_member_t *new_member = malloc(sizeof(sem_member_t));
+            new_member->type = member_type;
+            new_member->name = dctr->decltr->id;
+            if (prev_member) {
+                prev_member->next = new_member;
+            } else {
+                prev_member = new_member;
+                info->members = new_member;
+            }
+            prev_member = new_member;
+
+            // Add this id to the hash table
+            struct entry *new_hash_entry = malloc(sizeof(struct entry));
+            new_hash_entry->id = dctr->decltr->id;
+            new_hash_entry->next = ids[hash];
+            ids[hash] = new_hash_entry;
+        }
+    }
+
+    early_break:
+    if (!valid) {
+        for (int i=0; i<31; i++) {
+            for (struct entry *curr = ids[i]; curr;) {
+                struct entry *next = curr->next;
+                free(curr);
+                curr = next;
+            }
+        }
+        for (sem_member_t *member = info->members; member;) {
+            sem_member_t *next_member = member->next;
+            free(member);
+            member = next_member;
+        }
+        free(info);
+        return NULL;
+    }
+
+    info->complete = true;
+    info->name = sou->name;
+    return info;
 }

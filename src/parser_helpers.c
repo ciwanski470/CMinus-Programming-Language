@@ -152,7 +152,6 @@ static struct_decltr_list *reverse_struct_decltr_list(struct_decltr_list *node, 
 
     // Reverse sublists
     node->decltr = reverse_decltr(node->decltr, true);
-    reverse_in_expr(node->bits);
 
     return new_head;
 }

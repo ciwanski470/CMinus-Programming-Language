@@ -12,6 +12,10 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
 
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/ErrorOr.h"
+
 #include "llvm_codegen.hpp"
 
 extern "C" {
@@ -27,43 +31,46 @@ extern "C" {
 #include <string.h>
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 using namespace llvm;
 
 // Template uses T but the actual data structure will always use T*
-template <typename T>
-class scope_stack {
-    std::vector<std::map<std::string, T *>> vals;
-public:
-    T *find(const std::string &name) const {
-        for (int i=static_cast<int>(vals.size()-1); i>=0; i--) {
-            auto it = vals[i].find(name);
-            if (it != vals[i].end()) return it->second;
+namespace {
+    template <typename T>
+    class scope_stack {
+        std::vector<std::map<std::string, T *>> vals;
+    public:
+        T *find(const std::string &name) const {
+            for (int i=static_cast<int>(vals.size()-1); i>=0; i--) {
+                auto it = vals[i].find(name);
+                if (it != vals[i].end()) return it->second;
+            }
+            return nullptr;
         }
-        return nullptr;
-    }
 
-    T *operator[](const std::string &name) const {
-        return find(name);
-    }
+        T *operator[](const std::string &name) const {
+            return find(name);
+        }
 
-    T *operator[](const char *name) const {
-        std::string s(name);
-        return find(s);
-    }
+        T *operator[](const char *name) const {
+            std::string s(name);
+            return find(s);
+        }
 
-    void push(const std::string name, T *val) {
-        vals.back().emplace(std::move(name), std::move(val));
-    }
+        void push(const std::string name, T *val) {
+            vals.back().emplace(std::move(name), std::move(val));
+        }
 
-    void push_scope() {
-        vals.emplace_back();
-    }
+        void push_scope() {
+            vals.emplace_back();
+        }
 
-    void pop_scope() {
-        vals.pop_back();
-    }
-};
+        void pop_scope() {
+            vals.pop_back();
+        }
+    };
+}
 
 static std::unique_ptr<LLVMContext> context;
 static std::unique_ptr<IRBuilder<>> builder;
@@ -72,6 +79,8 @@ static scope_stack<Value> named_values;
 static scope_stack<BasicBlock> labels;
 static std::stack<BasicBlock *> break_dest;
 static std::stack<BasicBlock *> continue_dest;
+static std::map<sem_sou_info_t *, StructType *> sem_struct_to_llvm;
+static std::map<sem_sou_info_t *, StructType *> sem_union_to_llvm;
 
 static Type *i1_type = IntegerType::get(*context, 1);
 
@@ -92,10 +101,66 @@ static void pop_scope() {
 
 // Converts an integer value to a boolean
 static inline Value *force_bool(Value *v) {
-    if (!v->getType()->isIntegerTy(1)) {
-        v = builder->CreateICmpNE(v, ConstantInt::get(v->getType(), 0), "condtmp");
+    Type *t = v->getType();
+    if (t->isIntegerTy(1)) {
+        return v;
+    }
+
+    if (t->isIntegerTy()) {
+        v = builder->CreateICmpNE(v, ConstantInt::get(t, 0), "condtmp");
+    } else if (t->isFloatingPointTy()) {
+        v = builder->CreateFCmpONE(v, ConstantFP::get(t, 0.0), "condtmp");
+    } else if (t->isPointerTy()) {
+        Value *nullp = ConstantPointerNull::get(cast<PointerType>(t));
+        v = builder->CreateICmpNE(v, nullp, "condtmp");
+    } else {
+        Type *intptr = IntegerType::get(*context, llvm_module->getDataLayout().getPointerSizeInBits());
+        Value *as_int = builder->CreatePtrToInt(v, intptr);
+        v = builder->CreateICmpNE(as_int, ConstantInt::get(intptr, 0), "condtmp");
     }
     return v;
+}
+
+static StructType *get_or_create_struct_type(sem_type_t *sou_type) {
+    if (!sou_type) return nullptr;
+    if (sou_type->kind != ST_STRUCT && sou_type->kind != ST_UNION) return nullptr;
+
+    auto it = sem_struct_to_llvm.find(sou_type->sou_info);
+    if (it != sem_struct_to_llvm.end()) return it->second;
+    
+    StructType *llvm_struct = nullptr;
+    if (sou_type->kind == ST_STRUCT) {
+        std::vector<Type *> members;
+        for (sem_member_t *mem = sou_type->sou_info->members; mem; mem = mem->next) {
+            members.push_back(sem_type_to_llvm(mem->type));
+        }
+
+        llvm_struct = StructType::get(*context, members);
+        sem_struct_to_llvm[sou_type->sou_info] = llvm_struct;
+    } else {
+        const DataLayout &layout = llvm_module->getDataLayout();
+        Type *largest = nullptr;
+
+        for (sem_member_t *mem = sou_type->sou_info->members; mem; mem = mem->next) {
+            Type *new_type = sem_type_to_llvm(mem->type);
+            if (layout.getTypeAllocSize(new_type) > layout.getTypeAllocSize(largest)) {
+                largest = new_type;
+            }
+        }
+
+        llvm_struct = StructType::get(*context, largest);
+        sem_union_to_llvm[sou_type->sou_info] = llvm_struct;
+    }
+    return llvm_struct;
+}
+
+static int get_member_index_by_name(sem_sou_info_t *sou, const char *name) {
+    if (!sou) return -1;
+    int idx = 0;
+    for (sem_member_t *m = sou->members; m; m = m->next, idx++) {
+        if (m->name && name && strcmp(m->name, name) == 0) return idx;
+    }
+    return -1;
 }
 
 static Type *sem_type_to_llvm(sem_type_t *t) {
@@ -119,7 +184,8 @@ static Type *sem_type_to_llvm(sem_type_t *t) {
         }
         case ST_STRUCT:
         case ST_UNION: {
-            // FINISH LATER
+            assert(t->sou_info->complete);
+            return get_or_create_struct_type(t);
         }
         case ST_FUNC: {
             Type *ret = sem_type_to_llvm(t->func_info.return_type);
@@ -183,7 +249,7 @@ static Value *expr_codegen_lvalue(expr *e) {
             return ptr;
         }
         case EXPR_SUBSCRIPT: {
-            Value *base = expr_codegen(e->left);
+            Value *base = expr_codegen_lvalue(e->left);
             Value *idx = expr_codegen(e->right);
             sem_type_t *base_type = e->left->type;
             assert(base && idx);
@@ -199,11 +265,27 @@ static Value *expr_codegen_lvalue(expr *e) {
                 idx = builder->CreateIntCast(idx, IntegerType::get(*context, 64), true);
             }
 
-            return builder->CreateGEP(element_type, base, idx);
+            return builder->CreateInBoundsGEP(element_type, base, idx);
         }
         case EXPR_MEMBER_DOT:
         case EXPR_MEMBER_ARROW:
-            // Implement later
+            sem_type_t *sou_type = e->left->type;
+            Type *t = sem_type_to_llvm(sou_type);
+            Value *sou = expr_codegen_lvalue(e->left);
+            if (e->left->type->kind == ST_STRUCT) {
+                int idx = get_member_index_by_name(sou_type->sou_info, e->right->extra.id);
+                return builder->CreateStructGEP(t, sou, idx);
+            } else {
+                Type *access_type = nullptr;
+                for (sem_member_t *mem = sou_type->sou_info->members; mem; mem = mem->next) {
+                    if (strcmp(mem->name, e->right->extra.id) == 0) {
+                        access_type = sem_type_to_llvm(mem->type);
+                        break;
+                    }
+                }
+
+                return builder->CreateBitCast(sou, access_type->getPointerTo(), "union.bitcast");
+            }
         default:
             return nullptr;
     }
@@ -214,7 +296,7 @@ static std::string prepare_str_literal(const char *str_lit) {
     return new_str.substr(1, new_str.size()-2);
 }
 
-Value *expr_codegen(expr *e) {
+static Value *expr_codegen(expr *e) {
     if (!e) return nullptr;
 
     switch (e->kind) {
@@ -266,7 +348,7 @@ Value *expr_codegen(expr *e) {
 
         case EXPR_DEREF: {
             Value *v = expr_codegen(e->left);
-            Type *t = sem_type_to_llvm(e->left->type);
+            Type *t = sem_type_to_llvm(e->type);
             if (!v || !t) return nullptr;
             return builder->CreateLoad(t, v);
         }
@@ -389,10 +471,27 @@ Value *expr_codegen(expr *e) {
 
             if (ltype->isFloatingPointTy() || rtype->isFloatingPointTy()) {
                 if (!ltype->isFloatingPointTy()) {
-                    l = builder->CreateFPCast(l, rtype);
+                    if (e->left->type->is_signed) {
+                        l = builder->CreateSIToFP(l, rtype);
+                    } else {
+                        l = builder->CreateUIToFP(l, rtype);
+                    }
                 }
                 if (!rtype->isFloatingPointTy()) {
-                    r = builder->CreateFPCast(r, ltype);
+                    if (e->right->type->is_signed) {
+                        r = builder->CreateSIToFP(r, ltype);
+                    } else {
+                        r = builder->CreateUIToFP(r, ltype);
+                    }
+                }
+
+                // Promote one of them if necessary
+                if (ltype != rtype) {
+                    if (ltype->getPrimitiveSizeInBits() < rtype->getPrimitiveSizeInBits()) {
+                        l = builder->CreateFPExt(l, rtype, "fpext");
+                    } else {
+                        r = builder->CreateFPExt(r, ltype, "fpext");
+                    }
                 }
 
                 CmpInst::Predicate pred = CmpInst::FCMP_FALSE;
@@ -561,8 +660,10 @@ Value *expr_codegen(expr *e) {
                 return builder->CreateIntToPtr(v, to, "inttoptr");
             } else if (from->isPointerTy() && to->isIntegerTy()) {
                 return builder->CreatePtrToInt(v, to, "ptrtoint");
-            } else if (from->isPointerTy() && to->isPointerTy()) {
-                return builder->CreateBitCast(v, to, "ptrbitcast");
+            }
+            // ptr to ptr, but all LLVM pointers are opaque
+            else if (from->isPointerTy() && to->isPointerTy()) {
+                return v;
             }
 
             // ???
@@ -585,16 +686,28 @@ Value *expr_codegen(expr *e) {
             return builder->CreateNot(v, "bitnottmp");
         }
 
+        case EXPR_SIZEOF_EXPR:
+        case EXPR_SIZEOF_TYPE: {
+            const DataLayout &layout = llvm_module->getDataLayout();
+            Type *t = nullptr;
+            if (e->kind == EXPR_SIZEOF_EXPR) {
+                t = sem_type_to_llvm(e->left->type);
+            } else {
+                t = sem_type_to_llvm(e->extra.tn_type);
+            }
+            return ConstantInt::get(IntegerType::get(*context, 64), layout.getTypeAllocSize(t));
+        }
+
         case EXPR_MALLOC: {
             Value *size = expr_codegen(e->left);
-            // This may not work
-            Function *malloc_func = llvm_module->getFunction("malloc");
-            if (!malloc_func) {
-                // uhhhh
-                std::cerr << "Malloc doesn't exist???\n";
-                exit(1);
-            }
-            Value *call = builder->CreateCall(malloc_func, {size}, "malloc.call");
+            Value *call = builder->CreateMalloc(
+                Type::getInt64Ty(*context),
+                PointerType::get(*context, 0),
+                size,
+                nullptr,
+                nullptr,
+                "malloc.call"
+            );
             return call;
         }
 
@@ -602,7 +715,7 @@ Value *expr_codegen(expr *e) {
     }
 }
 
-void block_codegen(block_list *b) {
+static void block_codegen(block_list *b) {
     push_scope();
 
     for (block_list *curr = b; curr; curr = curr->next) {
@@ -775,7 +888,7 @@ static void stmt_codegen(stmt *s) {
     }
 }
 
-void decl_codegen(decl *d, bool is_global) {
+static void decl_codegen(decl *d, bool is_global) {
     for (init_decltr *curr = d->init_decltrs; curr; curr = curr->next) {
         sem_type_t *decl_type = curr->type;
         if (decl_type->kind == ST_FUNC) {
@@ -825,7 +938,7 @@ void decl_codegen(decl *d, bool is_global) {
     }
 }
 
-void func_codegen(func_def *fd) {
+static void func_codegen(func_def *fd) {
     Function *func = llvm_module->getFunction(fd->decltr->id);
     if (!func) {
         decl *func_decl = make_normal_decl(fd->specs, make_init_decltr(fd->decltr, 0));
@@ -851,12 +964,41 @@ void func_codegen(func_def *fd) {
 
     if (verifyFunction(*func)) {
         // This should not happen
-        std::cout << "function generation failed: aw hell nah you let an error pass\n";
+        std::cout << "function generation failed: that error should've been caught earlier\n";
         func->eraseFromParent();
     }
 }
 
-void emit_llvm(translation_unit *ast) {
+// Attempts to print human-readable LLVM IR to a file with the given name
+// Returns true if successful and false otherwise
+bool write_module_to_file(Module &m, const std::string &filename) {
+    std::error_code EC;
+
+    raw_fd_ostream out(filename, EC, sys::fs::OF_None);
+    if (EC) {
+        errs() << "Error opening file '" << filename << "': " << EC.message() << "\n";
+        return false;
+    }
+
+    m.print(out, nullptr);
+    return true;
+}
+
+static void initialize_module() {
+    context = std::make_unique<LLVMContext>();
+    llvm_module = std::make_unique<Module>("C- Language Module", *context);
+    builder = std::make_unique<IRBuilder<>>(*context);
+
+    sem_struct_to_llvm.clear();
+    sem_union_to_llvm.clear();
+
+    // Other static globals are guaranteed to be empty after generate_llvm() is finished
+}
+
+std::pair<std::unique_ptr<Module>, std::unique_ptr<LLVMContext>>
+generate_llvm(translation_unit *ast) {
+    initialize_module();
+
     push_scope();
 
     for (translation_unit *curr = ast; curr; curr = curr->next) {
@@ -868,4 +1010,18 @@ void emit_llvm(translation_unit *ast) {
     }
 
     pop_scope();
+
+    if (verifyModule(*llvm_module, &errs())) {
+        std::cout << "module failed: that error should've been caught earlier\n";
+        // the module doesn't want to live anymore
+        llvm_module.release();
+        return;
+    }
+
+    builder.release();
+    return {std::move(llvm_module), std::move(context)};
+}
+
+void module_to_asm(Module &m, const std::string &filename, const std::string &TargetTripleStr) {
+
 }

@@ -4,7 +4,7 @@
     Does not free types after exiting the scope
         Prevents decl structs from referencing null pointers
 
-    Note that no function in this file will report compilation errors
+    Note that no function in this file will report errors
 */
 
 #pragma once

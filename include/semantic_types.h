@@ -112,19 +112,14 @@ typedef struct sem_type_list {
 } sem_type_list_t;
 
 typedef struct sem_sou_info {
+    char *name;
     struct sem_member *members;
-    size_t size; // in bytes
-    size_t alignment; // in bytes
     bool complete;
 } sem_sou_info_t;
 
 typedef struct sem_member {
     char *name;
     struct sem_type *type;
-    bool has_bitfield;
-    int bit_width;
-    size_t offset_bytes; // byte offset from start of struct
-    int bit_offset_in_unit; // bit offset within current storage unit
 
     struct sem_member *next;
 } sem_member_t;
@@ -183,5 +178,5 @@ size_t size_of_string_lit(const char *s);
 
 int get_char_val(const char *s);
 
-bool resolve_sou_type(sem_type_t *sou_type);
+bool is_resolved(sem_type_t *sou_type);
 sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name);

@@ -385,8 +385,6 @@ struct_declarator_list
 
 struct_declarator
 	: declarator                            { $$ = make_struct_decltr_list($1, 0); }
-	| ':' constant_expression               { $$ = make_struct_decltr_list(0, $2); }
-	| declarator ':' constant_expression    { $$ = make_struct_decltr_list($1, $3); }
 	;
 
 enum_specifier

@@ -322,13 +322,6 @@ static void print_struct_decltrs(struct_decltr_list *decltrs) {
         } else {
             ast_write("Declarator: None\n");
         }
-
-        if (curr->bits) {
-            ast_write("Bit field:\n");
-            print_expr(curr->bits);
-        } else {
-            ast_write("Bit field: None\n");
-        }
     }
 
     indents--;

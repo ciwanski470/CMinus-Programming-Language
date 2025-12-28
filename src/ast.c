@@ -173,12 +173,11 @@ void add_struct_decl(struct_decl_list *prev, struct_decl_list *curr) {
     curr->next = prev;
 }
 
-struct_decltr_list *make_struct_decltr_list(decltr *decltr, expr *bits) {
+struct_decltr_list *make_struct_decltr_list(decltr *decltr) {
     struct_decltr_list *new_sdl = calloc(1, sizeof(struct_decltr_list));
     check_alloc_error(new_sdl, "Alloc error when creating new struct decltr list");
 
     new_sdl->decltr = decltr;
-    new_sdl->bits = bits;
 
     return new_sdl;
 }
