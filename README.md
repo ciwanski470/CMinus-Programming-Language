@@ -30,10 +30,7 @@ This compiler will read the user's suggestion and make the conscious decision to
 * Flexible array members are not allowed because no
 
 ## Technologies Used
-The code is most written in C, but also uses C++ for LLVM.
-
-Uses Flex and Bison to generate code for the files "scanner.c", "parser.h", and "parser.c".
-
-Uses the LLVM C++ API to generate IR and lower into assembly.
-
-Uses Makefile to make the program easy to compile
+* Code is most written in C, but also uses C++ for LLVM.
+* Flex and Bison used to generate code for the files "scanner.c", "parser.h", and "parser.c".
+* LLVM C++ API used to generate IR and lower into assembly.
+* Makefile used to make the program easy to compile.
