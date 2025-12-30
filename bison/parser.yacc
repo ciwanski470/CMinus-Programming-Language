@@ -384,7 +384,7 @@ struct_declarator_list
 	;
 
 struct_declarator
-	: declarator                            { $$ = make_struct_decltr_list($1, 0); }
+	: declarator                            { $$ = make_struct_decltr_list($1); }
 	;
 
 enum_specifier

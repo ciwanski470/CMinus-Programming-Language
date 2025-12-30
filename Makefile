@@ -47,7 +47,8 @@ TEST_BINARIES 	:= $(patsubst $(BUILD_DIR)/tests/%.o, $(BUILD_DIR)/tests/%, $(TES
 all: $(TARGET)
 
 # Build with AddressSanitizer
-asan: CXX = clang
+asan: CC = clang
+asan: CXX = clang++
 asan: CXXFLAGS += $(ASAN_FLAGS)
 asan: LDFLAGS += $(ASAN_FLAGS)
 asan: clean $(TARGET)

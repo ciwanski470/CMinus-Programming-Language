@@ -69,6 +69,15 @@ namespace {
         void pop_scope() {
             vals.pop_back();
         }
+
+        void print_defined() {
+            for (int i=static_cast<int>(vals.size()-1); i>=0; i--) {
+                std::cout << "Scope level: " << i << "\n";
+                for (auto [name, val] : vals[i]) {
+                    std::cout << name << "\n";
+                }
+            }
+        }
     };
 }
 
@@ -82,8 +91,7 @@ static std::stack<BasicBlock *> continue_dest;
 static std::map<sem_sou_info_t *, StructType *> sem_struct_to_llvm;
 static std::map<sem_sou_info_t *, StructType *> sem_union_to_llvm;
 
-static Type *i1_type = IntegerType::get(*context, 1);
-
+static Type *sem_type_to_llvm(sem_type_t *t);
 static Value *expr_codegen(expr *e);
 static void block_codegen(block_list *b);
 static void stmt_codegen(stmt *s);
@@ -97,6 +105,14 @@ static void push_scope() {
 static void pop_scope() {
     named_values.pop_scope();
     labels.pop_scope();
+}
+
+// Returns true if successful and false if the current block already has a terminator
+// Pretty much only necessary to check if the current block ends with a return statement
+static inline bool branch_to(BasicBlock *dest) {
+    if (builder->GetInsertBlock()->getTerminator()) return false;
+    builder->CreateBr(dest);
+    return true;
 }
 
 // Converts an integer value to a boolean
@@ -165,22 +181,19 @@ static int get_member_index_by_name(sem_sou_info_t *sou, const char *name) {
 
 static Type *sem_type_to_llvm(sem_type_t *t) {
     switch (t->kind) {
-        case ST_CHAR:   return IntegerType::get(*context, 8);
-        case ST_SHORT:  return IntegerType::get(*context, 16);
-        case ST_INT:    return IntegerType::get(*context, 32);
-        case ST_LONG:   return IntegerType::get(*context, 64);
-        case ST_LL:     return IntegerType::get(*context, 64);
-        case ST_BOOL:   return i1_type;
-        case ST_FLOAT:  return Type::getFloatTy(*context);
-        case ST_DOUBLE: return Type::getDoubleTy(*context);
-        case ST_VOID:   return Type::getVoidTy(*context);
-        case ST_POINTER: {
-            Type *element_type = sem_type_to_llvm(t->ptr_target);
-            return PointerType::getUnqual(element_type);
-        }
+        case ST_CHAR:       return IntegerType::get(*context, 8);
+        case ST_SHORT:      return IntegerType::get(*context, 16);
+        case ST_INT:        return IntegerType::get(*context, 32);
+        case ST_LONG:       return IntegerType::get(*context, 64);
+        case ST_LL:         return IntegerType::get(*context, 64);
+        case ST_BOOL:       return Type::getInt1Ty(*context);
+        case ST_FLOAT:      return Type::getFloatTy(*context);
+        case ST_DOUBLE:     return Type::getDoubleTy(*context);
+        case ST_VOID:       return Type::getVoidTy(*context);
+        case ST_POINTER:    return PointerType::get(*context, 0);
         case ST_ARRAY: {
             Type *element_type = sem_type_to_llvm(t->arr_info.element_type);
-            return PointerType::getUnqual(element_type);
+            return ArrayType::get(element_type, t->arr_info.size);
         }
         case ST_STRUCT:
         case ST_UNION: {
@@ -212,7 +225,7 @@ static Constant *constant_to_llvm(constant *c, sem_type_t *t) {
         return ConstantFP::get(*context, apf);
     } else if (t->kind == ST_BOOL) {
         uint64_t val = c->val.ui_val ? 1ull : 0ull;
-        return ConstantInt::get(i1_type, val, false);
+        return ConstantInt::get(Type::getInt1Ty(*context), val, false);
     } else if (type_is_integral(t)) {
         unsigned int num_bits = 32;
         switch (t->kind) {
@@ -249,7 +262,7 @@ static Value *expr_codegen_lvalue(expr *e) {
             return ptr;
         }
         case EXPR_SUBSCRIPT: {
-            Value *base = expr_codegen_lvalue(e->left);
+            Value *base = expr_codegen(e->left);
             Value *idx = expr_codegen(e->right);
             sem_type_t *base_type = e->left->type;
             assert(base && idx);
@@ -268,7 +281,7 @@ static Value *expr_codegen_lvalue(expr *e) {
             return builder->CreateInBoundsGEP(element_type, base, idx);
         }
         case EXPR_MEMBER_DOT:
-        case EXPR_MEMBER_ARROW:
+        case EXPR_MEMBER_ARROW: {
             sem_type_t *sou_type = e->left->type;
             Type *t = sem_type_to_llvm(sou_type);
             Value *sou = expr_codegen_lvalue(e->left);
@@ -276,16 +289,9 @@ static Value *expr_codegen_lvalue(expr *e) {
                 int idx = get_member_index_by_name(sou_type->sou_info, e->right->extra.id);
                 return builder->CreateStructGEP(t, sou, idx);
             } else {
-                Type *access_type = nullptr;
-                for (sem_member_t *mem = sou_type->sou_info->members; mem; mem = mem->next) {
-                    if (strcmp(mem->name, e->right->extra.id) == 0) {
-                        access_type = sem_type_to_llvm(mem->type);
-                        break;
-                    }
-                }
-
-                return builder->CreateBitCast(sou, access_type->getPointerTo(), "union.bitcast");
+                return builder->CreateBitCast(sou, PointerType::get(*context, 0), "union.bitcast");
             }
+        }
         default:
             return nullptr;
     }
@@ -306,10 +312,14 @@ static Value *expr_codegen(expr *e) {
             return c;
         }
         case EXPR_STR_LITERAL: {
-            return builder->CreateGlobalStringPtr(prepare_str_literal(e->extra.str_val), "str_lit");
+            return builder->CreateGlobalString(prepare_str_literal(e->extra.str_val), "str_lit");
         }
         case EXPR_ID: {
             Value *addr = named_values[e->extra.id];
+            if (!addr) {
+                std::cout << e->extra.id << "\n";
+                named_values.print_defined();
+            }
             assert(addr);
             if (!addr->getType()->isPointerTy()) return addr;
             Type *t = sem_type_to_llvm(e->type);
@@ -326,14 +336,20 @@ static Value *expr_codegen(expr *e) {
                 curr = curr->right;
             }
 
-            Value *calleeV = expr_codegen(e->left);
+            Value *calleeV = expr_codegen_lvalue(e->left);
             Function *calleeF = nullptr;
             if (auto fn = dyn_cast<Function>(calleeV)) calleeF = fn;
             if (!calleeF && e->left->kind == EXPR_ID) {
                 calleeF = llvm_module->getFunction(e->extra.id);
             }
 
-            if (!calleeF) return nullptr;
+            if (!calleeF) {
+                std::cout << "Functions:\n";
+                for (auto &fn : llvm_module->getFunctionList()) {
+                    std::cout << std::string(fn.getName()) << "\n";
+                }
+                return nullptr;
+            }
             return builder->CreateCall(calleeF, args);
         }
 
@@ -515,6 +531,7 @@ static Value *expr_codegen(expr *e) {
                     case EXPR_GEQ:  pred = is_signed ? CmpInst::ICMP_SGE : CmpInst::ICMP_UGE; break;
                     case EXPR_EQ:   pred = CmpInst::ICMP_EQ; break;
                     case EXPR_NEQ:  pred = CmpInst::ICMP_NE; break;
+                    default:;
                 }
                 return builder->CreateICmp(pred, l, r, "icmp");
             }
@@ -545,6 +562,7 @@ static Value *expr_codegen(expr *e) {
             builder->CreateBr(cont_block);
             builder->SetInsertPoint(cont_block);
             PHINode *phi = nullptr;
+            Type *i1_type = Type::getInt1Ty(*context);
             if (e->kind == EXPR_LOGAND) {
                 phi = builder->CreatePHI(i1_type, 2, "logic.and");
                 phi->addIncoming(ConstantInt::get(i1_type, 0), left_block);
@@ -676,7 +694,7 @@ static Value *expr_codegen(expr *e) {
             if (v->getType()->isIntegerTy(1)) {
                 return builder->CreateNot(v, "lognot");
             } else {
-                return builder->CreateICmpEQ(v, ConstantInt::get(i1_type, 0), "lnotcmp");
+                return builder->CreateICmpEQ(v, ConstantInt::get(v->getType(), 0), "lnotcmp");
             }
         }
 
@@ -719,10 +737,10 @@ static void block_codegen(block_list *b) {
     push_scope();
 
     for (block_list *curr = b; curr; curr = curr->next) {
-        if (b->kind == BI_STMT) {
-            stmt_codegen(b->stmt);
+        if (curr->kind == BI_STMT) {
+            stmt_codegen(curr->stmt);
         } else {
-            decl_codegen(b->decl, false);
+            decl_codegen(curr->decl, false);
         }
     }
 
@@ -731,6 +749,7 @@ static void block_codegen(block_list *b) {
 
 static void stmt_codegen(stmt *s) {
     if (!s) return;
+    if (builder->GetInsertBlock()->getTerminator()) return;
 
     switch (s->kind) {
         case STMT_EXPR:     expr_codegen(s->expr_stmt); break;
@@ -749,14 +768,14 @@ static void stmt_codegen(stmt *s) {
 
                 builder->SetInsertPoint(else_block);
                 stmt_codegen(s->conditional_stmt.else_body);
-                builder->CreateBr(merge_block);
+                branch_to(merge_block);
             } else {
                 builder->CreateCondBr(cond, then_block, merge_block);
             }
 
             builder->SetInsertPoint(then_block);
             stmt_codegen(s->conditional_stmt.body);
-            builder->CreateBr(merge_block);
+            branch_to(merge_block);
             builder->SetInsertPoint(merge_block);
 
             break;
@@ -782,7 +801,7 @@ static void stmt_codegen(stmt *s) {
             continue_dest.push(cond_block);
             stmt_codegen(s->conditional_stmt.body);
 
-            builder->CreateBr(cond_block);
+            branch_to(cond_block);
             builder->SetInsertPoint(end_block);
             break_dest.pop();
             continue_dest.pop();
@@ -807,7 +826,7 @@ static void stmt_codegen(stmt *s) {
             continue_dest.push(cond_block);
             stmt_codegen(s->conditional_stmt.body);
 
-            builder->CreateBr(cond_block);
+            branch_to(cond_block);
             builder->SetInsertPoint(end_block);
             break_dest.pop();
             continue_dest.pop();
@@ -840,10 +859,12 @@ static void stmt_codegen(stmt *s) {
             continue_dest.push(cond_block);
             stmt_codegen(s->for_stmt.body);
 
-            builder->CreateBr(cond_block);
+            branch_to(cond_block);
             builder->SetInsertPoint(end_block);
             break_dest.pop();
             continue_dest.pop();
+
+            break;
         }
         case STMT_LABEL: {
             Function *curr_func = builder->GetInsertBlock()->getParent();
@@ -861,9 +882,12 @@ static void stmt_codegen(stmt *s) {
         }
         case STMT_DEFAULT: {
             // Implement later
+            return;
         }
         case STMT_GOTO: {
-            builder->CreateBr(labels[s->goto_stmt.label]);
+            BasicBlock *dest = labels[s->goto_stmt.label];
+            assert(dest);
+            builder->CreateBr(dest);
             break;
         }
         case STMT_CONTINUE: {
@@ -891,6 +915,9 @@ static void stmt_codegen(stmt *s) {
 static void decl_codegen(decl *d, bool is_global) {
     for (init_decltr *curr = d->init_decltrs; curr; curr = curr->next) {
         sem_type_t *decl_type = curr->type;
+        assert(decl_type);
+        
+        // Function declaration is guaranteed to be at file scope
         if (decl_type->kind == ST_FUNC) {
             Type *ret = sem_type_to_llvm(decl_type->func_info.return_type);
             std::vector<Type *> param_types;
@@ -899,12 +926,14 @@ static void decl_codegen(decl *d, bool is_global) {
             }
             FunctionType *ft = FunctionType::get(ret, param_types, false);
 
-            Function *f = Function::Create(
+            Function::Create(
                 ft, Function::ExternalLinkage, curr->decltr->id, *llvm_module
             );
 
             // Set arg names maybe?
-        } else if (!is_global) {
+        }
+        // Regular variable declaration
+        else if (!is_global) {
             Type *t = sem_type_to_llvm(curr->type);
             AllocaInst *var = builder->CreateAlloca(t, nullptr, curr->decltr->id);
             
@@ -915,7 +944,9 @@ static void decl_codegen(decl *d, bool is_global) {
 
             std::string name(curr->decltr->id);
             named_values.push(name, var);
-        } else {
+        }
+        // Global variable declaration
+        else {
             Type *t = sem_type_to_llvm(curr->type);
             Constant *init = nullptr;
             if (curr->init && curr->init->kind == INIT_EXPR) {
@@ -933,6 +964,7 @@ static void decl_codegen(decl *d, bool is_global) {
                 curr->decltr->id
             );
 
+            llvm_module->insertGlobalVariable(var);
             named_values.push(curr->decltr->id, var);
         }
     }
@@ -949,29 +981,34 @@ static void func_codegen(func_def *fd) {
 
     assert(func);
 
+    std::cout << "Defining function " << fd->decltr->id << "\n";
+
     // Set all parameter names
     param_list *param = fd->decltr->next->func.params;
     for (auto &arg : func->args()) {
         arg.setName(param->param_decl->param_decltr->id);
         named_values.push(std::string(arg.getName()), &arg);
     }
+    named_values.push(std::string(fd->decltr->id), func);
 
     BasicBlock *body = BasicBlock::Create(*context, "func.entry", func);
     builder->SetInsertPoint(body);
-    push_scope();
     stmt_codegen(fd->body);
-    pop_scope();
+
+    // void functions need a return terminator
+    if (!builder->GetInsertBlock()->getTerminator()) {
+        builder->CreateRet(nullptr);
+    }
 
     if (verifyFunction(*func)) {
         // This should not happen
         std::cout << "function generation failed: that error should've been caught earlier\n";
-        func->eraseFromParent();
     }
 }
 
 // Attempts to print human-readable LLVM IR to a file with the given name
 // Returns true if successful and false otherwise
-bool write_module_to_file(Module &m, const std::string &filename) {
+bool write_module_to_file(const Module &m, const std::string &filename) {
     std::error_code EC;
 
     raw_fd_ostream out(filename, EC, sys::fs::OF_None);
@@ -995,7 +1032,7 @@ static void initialize_module() {
     // Other static globals are guaranteed to be empty after generate_llvm() is finished
 }
 
-std::pair<std::unique_ptr<Module>, std::unique_ptr<LLVMContext>>
+std::optional<std::pair<std::unique_ptr<Module>, std::unique_ptr<LLVMContext>>>
 generate_llvm(translation_unit *ast) {
     initialize_module();
 
@@ -1012,14 +1049,13 @@ generate_llvm(translation_unit *ast) {
     pop_scope();
 
     if (verifyModule(*llvm_module, &errs())) {
-        std::cout << "module failed: that error should've been caught earlier\n";
-        // the module doesn't want to live anymore
+        write_module_to_file(*llvm_module, "llvm_error_module.ll");
         llvm_module.release();
-        return;
+        return std::nullopt;
     }
 
     builder.release();
-    return {std::move(llvm_module), std::move(context)};
+    return std::optional{ std::pair(std::move(llvm_module), std::move(context)) };
 }
 
 void module_to_asm(Module &m, const std::string &filename, const std::string &TargetTripleStr) {

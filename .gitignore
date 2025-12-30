@@ -55,9 +55,10 @@ dkms.conf
 /main
 build/
 
-# Extra useless/debug files
+# Extra useless/debug/output files
 .DS_Store
 .vscode
 *.original
 *.gimple
 *.ast
+*.ll

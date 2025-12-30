@@ -6,14 +6,14 @@ Declaration:
         Declarator:
             Identifier: "a"
         Initializer:
-            Constant: "0"
+            Constant: "10"
 
 Function definition:
     Specifiers:
         Type Specifiers:
             int
     Declarator:
-        Identifier: "reverse_list"
+        Identifier: "foo"
         Function Suffix:
             Parameters:
                 Declaration:
@@ -21,13 +21,59 @@ Function definition:
                         Type Specifiers:
                             int
                     Parameter Declarator:
-                        Identifier: "curr"
-                Declaration:
-                    Specifiers:
-                        Type Specifiers:
-                            int
-                    Parameter Declarator:
-                        Identifier: "is_first"
+                        Identifier: "b"
+    Body:
+        Statement:
+            If Statement:
+                Condition:
+                    Less Than or Equal to
+                    Left:
+                        Identifier: "b"
+                    Right:
+                        Constant: "0"
+                Body:
+                    Return:
+                        Constant: "0"
+        Statement:
+            Return:
+                Ternary Expression
+                Condition:
+                    Greater Than
+                    Left:
+                        Identifier: "b"
+                    Right:
+                        Constant: "2"
+                First:
+                    Addition
+                    Left:
+                        Identifier: "b"
+                    Right:
+                        Function Call
+                        Function:
+                            Identifier: "foo"
+                        Arguments:
+                            Argument List:
+                                Expression:
+                                    Addition
+                                    Left:
+                                        Identifier: "b"
+                                    Right:
+                                        Constant: "1"
+                Second:
+                    Addition
+                    Left:
+                        Identifier: "b"
+                    Right:
+                        Constant: "1"
+
+Function definition:
+    Specifiers:
+        Type Specifiers:
+            void
+    Declarator:
+        Identifier: "main"
+        Function Suffix:
+            Parameters:
     Body:
         Declaration:
             Specifiers:
@@ -35,123 +81,9 @@ Function definition:
                     int
             Declarator-Initializer List:
                 Declarator:
-                    Identifier: "new_head"
-                        Pointer:
-                            *Ptr
+                    Identifier: "sum"
                 Initializer:
-                    Ternary Expression
-                    Condition:
-                        Identifier: "curr"
-                    First:
-                        Function Call
-                        Function:
-                            Identifier: "reverse_list"
-                        Arguments:
-                            Argument List:
-                                Expression:
-                                    Identifier: "curr"
-                                Expression:
-                                    Constant: "0"
-                    Second:
-                        Identifier: "curr"
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "f"
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                        Pointer:
-                            *Ptr
-                    Function Suffix:
-                        Parameters:
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        int
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        double
-                        Pointer:
-                            *Ptr
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "a"
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                        Pointer:
-                            *Ptr
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "b"
-                    Array Suffix:
-                        Size:
-                            Constant: "4"
-                Initializer: None
-        Statement:
-            Expression:
-                Function Call
-                Function:
-                    Identifier: "func"
-                Arguments:
-                    Argument List:
-                        Expression:
-                            Identifier: "b"
-        Declaration:
-            Specifiers:
-                Storage Class: typedef
-                Type Specifiers:
-                    int
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "some_type"
-                        Pointer:
-                            *Ptr
-                    Function Suffix:
-                        Parameters:
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        int
-                            Declaration:
-                                Specifiers:
-                                    Type Specifiers:
-                                        int
-                        Pointer:
-                            *Ptr
-                    Array Suffix:
-                        Size:
-                            Constant: "8"
-                Initializer: None
-        Declaration:
-            Specifiers:
-                Type Specifiers:
-                    Typedef: "some_type"
-            Declarator-Initializer List:
-                Declarator:
-                    Identifier: "var"
-                    Array Suffix:
-                        Size:
-                            Constant: "10"
-                Initializer: None
+                    Constant: "0"
         Statement:
             For Loop:
                 Init Declaration:
@@ -162,13 +94,13 @@ Function definition:
                         Declarator:
                             Identifier: "i"
                         Initializer:
-                            Constant: "0"
+                            Constant: "1"
                 Condition:
-                    Less Than
+                    Less Than or Equal to
                     Left:
                         Identifier: "i"
                     Right:
-                        Constant: "4"
+                        Identifier: "a"
                 Update:
                     Postfix Increment
                     Item:
@@ -179,11 +111,41 @@ Function definition:
                             Expression:
                                 Assignment
                                 Left Value:
-                                    Array Access
-                                    Array:
-                                        Identifier: "b"
-                                    Index:
-                                        Identifier: "i"
+                                    Identifier: "sum"
                                 Assigned Value:
-                                    Identifier: "i"
+                                    Addition
+                                    Left:
+                                        Identifier: "sum"
+                                    Right:
+                                        Identifier: "i"
+        Declaration:
+            Specifiers:
+                Type Specifiers:
+                    int
+            Declarator-Initializer List:
+                Declarator:
+                    Identifier: "func"
+                        Pointer:
+                            *Ptr
+                    Function Suffix:
+                        Parameters:
+                            Declaration:
+                                Specifiers:
+                                    Type Specifiers:
+                                        int
+                Initializer:
+                    Address of
+                    Item:
+                        Identifier: "foo"
+        Statement:
+            Expression:
+                Function Call
+                Function:
+                    Dereference
+                    Item:
+                        Identifier: "func"
+                Arguments:
+                    Argument List:
+                        Expression:
+                            Identifier: "sum"
 

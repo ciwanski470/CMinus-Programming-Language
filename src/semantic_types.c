@@ -907,5 +907,9 @@ sem_type_t *make_sou_type(sou_spec *sou) {
 
     info->complete = true;
     info->name = sou->name;
-    return info;
+
+    sem_type_t *new_type = alloc_sem_type();
+    new_type->kind = sou->kind == SOU_STRUCT ? ST_STRUCT : ST_UNION;
+    new_type->sou_info = info;
+    return new_type;
 }

@@ -80,7 +80,7 @@ static void print_init_list         (init_list *list);
 static void print_arg_list          (expr *arg_expr);
 
 // Public function
-void print_ast(translation_unit *tree, char *output_name) {
+void print_ast(translation_unit *tree, const char *output_name) {
     file = fopen(output_name, "w");
     if (!file) {
         perror("Could not create output file for AST");

@@ -10,4 +10,4 @@
 /*
     Prints the given AST in an Indented Tree Format
 */
-void print_ast(translation_unit *tree, char *output_name);
+void print_ast(translation_unit *tree, const char *output_name);

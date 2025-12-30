@@ -1,20 +1,16 @@
-int a = 0;
+int a = 10;
 
-int reverse_list(int curr, int is_first) {
-    int *new_head = (curr) ? reverse_list(curr, 0) : curr;
+int foo(int b) {
+    if (b <= 0) return 0;
+    return (b > 2) ? b + foo(b-1) : b + 1;
+}
 
-    int (*(*f[8])(int, double))[8];
-
-    int *a[8];
-
-    int b[4];
-    func(b);
-
-    typedef int (*(*some_type)(int, int))[8];
-
-    some_type var[10];
-
-    for (int i=0; i<4; i++) {
-        b[i] = i;
+void main() {
+    int sum = 0;
+    for (int i=1; i<=a; i++) {
+        sum += i;
     }
+    
+    int (*func)(int) = &foo;
+    (*func)(sum);
 }

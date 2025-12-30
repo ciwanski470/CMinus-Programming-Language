@@ -215,7 +215,12 @@ static bool process_decl(decl *dcl, scope_kind scope) {
     } else {
         sem_type_t *type = decl_type(specs, dcl->param_decltr, true);
         if (!type) return false;
-        sem_declare_id(dcl->param_decltr->id, type, false, false);
+        sem_symbol_t *sym = sem_declare_id(dcl->param_decltr->id, type, false, false);
+        if (!sym) {
+            push_error("*** invalid redefinition of a variable");
+            success = false;
+        }
+        dcl->param_type = type;
     }
 
     return success;
@@ -503,6 +508,8 @@ bool traverse_ast(translation_unit *ast) {
             sem_pop_scope();
             sem_pop_scope();
 
+            func->type = func_type;
+
             // Check if the function is void; if not, check for a return statement
             if (
                 types_equal(
@@ -517,8 +524,6 @@ bool traverse_ast(translation_unit *ast) {
                 push_error("*** non-void function must end with a return statement");
                 success = false;
             }
-
-            func->type = func_type;
         }
     }
 

@@ -404,7 +404,10 @@ typedef struct decl {
     bool decltr_abstract;
     union {
         struct init_decltr *init_decltrs;
-        struct decltr *param_decltr;
+        struct {
+            struct decltr *param_decltr;
+            struct sem_type *param_type;
+        };
     };
 } decl;
 
