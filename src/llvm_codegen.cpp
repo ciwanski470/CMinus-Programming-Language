@@ -22,6 +22,7 @@ extern "C" {
     #include "semantic_types.h"
     #include "ast.h"
     #include "error_handling.h"
+    #include "string_helpers.h"
 }
 
 #include <vector>
@@ -336,21 +337,11 @@ static Value *expr_codegen(expr *e) {
                 curr = curr->right;
             }
 
-            Value *calleeV = expr_codegen_lvalue(e->left);
-            Function *calleeF = nullptr;
-            if (auto fn = dyn_cast<Function>(calleeV)) calleeF = fn;
-            if (!calleeF && e->left->kind == EXPR_ID) {
-                calleeF = llvm_module->getFunction(e->extra.id);
-            }
-
-            if (!calleeF) {
-                std::cout << "Functions:\n";
-                for (auto &fn : llvm_module->getFunctionList()) {
-                    std::cout << std::string(fn.getName()) << "\n";
-                }
-                return nullptr;
-            }
-            return builder->CreateCall(calleeF, args);
+            Value *callee = expr_codegen_lvalue(e->left);
+            FunctionType *callee_type = cast<FunctionType>(sem_type_to_llvm(e->left->type));
+            assert(callee);
+            assert(callee_type);
+            return builder->CreateCall(callee_type, callee, args, "calltmp");
         }
 
         case EXPR_SUBSCRIPT:
@@ -363,9 +354,11 @@ static Value *expr_codegen(expr *e) {
         }
 
         case EXPR_DEREF: {
-            Value *v = expr_codegen(e->left);
+            Value *v = expr_codegen_lvalue(e->left);
             Type *t = sem_type_to_llvm(e->type);
-            if (!v || !t) return nullptr;
+            assert(v && t);
+            t->print(outs());
+            std::cout << type_to_s(e->type) << std::endl;
             return builder->CreateLoad(t, v);
         }
         case EXPR_ADDREF: {
@@ -980,8 +973,6 @@ static void func_codegen(func_def *fd) {
     }
 
     assert(func);
-
-    std::cout << "Defining function " << fd->decltr->id << "\n";
 
     // Set all parameter names
     param_list *param = fd->decltr->next->func.params;

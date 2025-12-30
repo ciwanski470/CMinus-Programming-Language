@@ -22,12 +22,12 @@ extern int yydebug;
     } else { \
         printf("decl_type failed test #%d\n", test_num); \
     } \
-    printf("\n");
+    printf("\n")
 
 int main(void) {
     printf("\n");
     int passed = 0;
-    const int total = 4;
+    const int total = 5;
 
     yyin = fopen("tests/data/decl_type_test.cm", "r");
     yydebug = false;
@@ -54,7 +54,7 @@ int main(void) {
         );
         sem_type_t *actual = decl_type(curr_decl->specs, curr_decl->init_decltrs->decltr, false);
 
-        verify(1)
+        verify(1);
     }
 
     t = t->next;
@@ -82,7 +82,7 @@ int main(void) {
 
         sem_type_t *actual = decl_type(curr_decl->specs, curr_decl->init_decltrs->decltr, false);
 
-        verify(2)
+        verify(2);
     }
 
     t = t->next;
@@ -95,7 +95,7 @@ int main(void) {
         sem_type_t *expected = make_primitive_type(ST_VOID, false, TQ_CONST_MASK);
         sem_type_t *actual = decl_type(curr_decl->specs, curr_decl->init_decltrs->decltr, false);
 
-        verify(3)
+        verify(3);
     }
 
     t = t->next;
@@ -108,7 +108,26 @@ int main(void) {
         sem_type_t *expected = make_primitive_type(ST_INT, true, 0);
         sem_type_t *actual = decl_type(curr_decl->specs, curr_decl->init_decltrs->decltr, false);
 
-        verify(4)
+        verify(4);
+    }
+
+    t = t->next;
+
+    // Fifth test
+    {
+        printf("decl_type test 5:\n");
+        decl *curr_decl = t->action->decl;
+
+        sem_type_t *expected = make_pointer_type(
+            make_func_type(
+                make_primitive_type(ST_INT, true, 0),
+                alloc_sem_type_list(make_primitive_type(ST_INT, true, 0))
+            ),
+            0
+        );
+        sem_type_t *actual = decl_type(curr_decl->specs, curr_decl->init_decltrs->decltr, false);
+
+        verify(5);
     }
 
     if (passed < total) exit(1);

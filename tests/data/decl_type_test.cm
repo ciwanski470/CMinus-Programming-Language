@@ -7,3 +7,4 @@ int *a[10];
 void *(*func[10])(int, volatile short, double);
 const void b;
 int c = 1;
+int (*func)(int);
