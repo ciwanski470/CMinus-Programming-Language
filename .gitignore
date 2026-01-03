@@ -53,6 +53,7 @@ dkms.conf
 
 # Compiled files
 /main
+/example
 build/
 
 # Extra useless/debug/output files

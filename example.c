@@ -1,3 +1,5 @@
+extern int printf(const char *message, ...);
+
 int a = 10;
 
 int foo(int b) {
@@ -5,12 +7,14 @@ int foo(int b) {
     return (b > 2) ? b + foo(b-1) : b + 1;
 }
 
-void main() {
+int main() {
     int sum = 0;
     for (int i=1; i<=a; i++) {
         sum += i;
     }
     
     int (*func)(int) = &foo;
-    (*func)(sum);
+    printf("%d\n", (*func)(sum));
+
+    return 0;
 }

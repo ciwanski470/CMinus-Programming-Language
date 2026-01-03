@@ -27,7 +27,6 @@ WS          [ \t\v\n\f]
 "//".*                      { /* consume comment */ }
 
 
-"auto"			            { return AUTO; }
 "break"			            { return BREAK; }
 "case"			            { return CASE; }
 "char"			            { return CHAR; }
@@ -41,16 +40,11 @@ WS          [ \t\v\n\f]
 "extern"		            { return EXTERN; }
 "float"			            { return FLOAT; }
 "for"			            { return FOR; }
-"free"                      { return FREE; }
 "goto"			            { return GOTO; }
 "if"			            { return IF; }
 "inline"		            { return INLINE; }
 "int"			            { return INT; }
 "long"			            { return LONG; }
-"malloc"                    { return MALLOC; }
-"print"                     { return PRINT; }
-"register"		            { return REGISTER; }
-"restrict"		            { return RESTRICT; }
 "return"		            { return RETURN; }
 "short"			            { return SHORT; }
 "signed"		            { return SIGNED; }
@@ -68,7 +62,6 @@ WS          [ \t\v\n\f]
 "__func__"                  { return FUNC_NAME; }
 
 (U|u)?'\\.'	                { yylval.sval = strdup(yytext); return CONST_INT; }
-(0|[1-9]{D}*)(p|P)          { yylval.sval = strdup(yytext); return CONST_PTR; }
 
 {D}*"."{D}+{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }
 {D}+"."{D}*{FS}?	        { yylval.sval = strdup(yytext); return CONST_FLOAT; }

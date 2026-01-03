@@ -62,7 +62,7 @@ expr *make_const_expr(constant *const_val) {
     return new_expr;
 }
 
-expr *make_string_expr(char *str) {
+expr *make_string_expr(const char *str) {
     expr *new_expr = alloc_expr();
 
     new_expr->kind = EXPR_STR_LITERAL;
@@ -269,12 +269,15 @@ decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size
     return new_decltr;
 }
 
-decltr *make_decltr_proto_suffix(decltr *prev, param_list *params) {
+decltr *make_decltr_proto_suffix(decltr *prev, param_type_list *params) {
     decltr *new_decltr = alloc_decltr();
 
     new_decltr->kind = DCTR_FUNC;
     new_decltr->next = prev;
-    new_decltr->func.params = params;
+    if (params) new_decltr->func.params = params->params;
+    if (params) new_decltr->func.variadic = params->variadic;
+
+    free(params);
 
     return new_decltr;
 }
@@ -309,6 +312,16 @@ param_list *make_param_list(param_list *prev, decl *param_decl) {
     new_params->param_decl = param_decl;
 
     return new_params;
+}
+
+param_type_list *make_param_type_list(param_list *params, bool variadic) {
+    param_type_list *new_list = calloc(1, sizeof(param_type_list));
+    check_alloc_error(new_list, "Alloc error when creating new param type list");
+
+    new_list->params = params;
+    new_list->variadic = variadic;
+
+    return new_list;
 }
 
 initializer *make_expr_init(expr *assignment) {
@@ -557,34 +570,6 @@ stmt *make_return_stmt(expr *result) {
 
     new_stmt->kind = STMT_RETURN;
     new_stmt->return_stmt.result = result;
-
-    return new_stmt;
-}
-
-stmt *make_str_print_stmt(const char *str_val) {
-    stmt *new_stmt = alloc_stmt();
-
-    new_stmt->kind = STMT_PRINT_STR;
-    new_stmt->print_stmt.str_val = strdup(str_val);
-
-    return new_stmt;
-}
-
-stmt *make_expr_print_stmt(expr *item, constant *size) {
-    stmt *new_stmt = alloc_stmt();
-
-    new_stmt->kind = STMT_PRINT_EXPR;
-    new_stmt->print_stmt.item = item;
-    new_stmt->print_stmt.size = size;
-
-    return new_stmt;
-}
-
-stmt *make_free_stmt(expr *item) {
-    stmt *new_stmt = alloc_stmt();
-
-    new_stmt->kind = STMT_FREE;
-    new_stmt->free_stmt.item = item;
 
     return new_stmt;
 }

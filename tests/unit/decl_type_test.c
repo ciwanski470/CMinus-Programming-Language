@@ -72,7 +72,8 @@ int main(void) {
             make_pointer_type(
                 make_func_type(
                     make_pointer_type(make_primitive_type(ST_VOID, false, 0), 0),
-                    params
+                    params,
+                    false
                 ),
                 0
             ),
@@ -121,7 +122,8 @@ int main(void) {
         sem_type_t *expected = make_pointer_type(
             make_func_type(
                 make_primitive_type(ST_INT, true, 0),
-                alloc_sem_type_list(make_primitive_type(ST_INT, true, 0))
+                alloc_sem_type_list(make_primitive_type(ST_INT, true, 0)),
+                false
             ),
             0
         );

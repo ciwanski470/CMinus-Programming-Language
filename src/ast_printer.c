@@ -171,17 +171,17 @@ static void print_decl_specs(decl_specs *specs) {
     indents++;
 
     switch (specs->storage) {
-        case SC_AUTO:
-            ast_write("Storage Class: auto\n");
-            break;
         case SC_EXTERN:
             ast_write("Storage Class: extern\n");
             break;
-        case SC_REGISTER:
-            ast_write("Storage Class: register\n");
-            break;
         case SC_STATIC:
             ast_write("Storage Class: static\n");
+            break;
+        case SC_REGISTER:
+            ast_write("Storage class: register");
+            break;
+        case SC_AUTO:
+            ast_write("Storage class: auto");
             break;
         case SC_TYPEDEF:
             ast_write("Storage Class: typedef\n");
@@ -553,18 +553,6 @@ static void print_stmt(stmt *stmt) {
                 ast_write("Return: None\n");
             }
             break;
-        case STMT_PRINT_STR:
-            ast_write("Print %s:\n", stmt->print_stmt.str_val)
-            break;
-        case STMT_PRINT_EXPR:
-            ast_write("Print:\n")
-            indents++;
-            ast_write("Item:\n")
-            print_expr(stmt->print_stmt.item);
-            ast_write("Size: %s\n", stmt->print_stmt.size->value)
-            indents--;
-            break;
-            
     }
 
     indents--;
@@ -613,7 +601,6 @@ static void print_expr(expr *expr) {
         unary_expr_case(EXPR_BITNOT, "Bitwise Not\n")
         unary_expr_case(EXPR_LOGNOT, "Logical Not\n")
         unary_expr_case(EXPR_SIZEOF_EXPR, "Sizeof:\n")
-        unary_expr_case(EXPR_MALLOC, "Malloc:\n")
 
         bin_expr_case(EXPR_MUL, "Multiplication\n")
         bin_expr_case(EXPR_DIV, "Division\n")

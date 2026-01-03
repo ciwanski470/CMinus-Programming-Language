@@ -17,6 +17,7 @@ extern "C" {
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
 
 extern FILE *yyin;
 extern translation_unit *ast_root;
@@ -28,8 +29,8 @@ enum compiler_tag {
 };
 
 std::map<std::string, compiler_tag> match_tag = {
-    {"-ast", OUTPUT_AST},
-    {"-print-llvm", OUTPUT_LLVM}
+    {"-emit-ast", OUTPUT_AST},
+    {"-emit-llvm", OUTPUT_LLVM}
 };
 
 // Returns -1ULL if there's an issue with the tags
@@ -61,17 +62,28 @@ uint64_t get_tags(int argc, char *argv[]) {
     return tags;
 }
 
+std::string get_base_name(const std::string &filename) {
+    uint16_t last_dot = -1;
+    for (uint16_t i=0; i<filename.size(); i++) {
+        if (filename[i] == '.') last_dot = i;
+    }
+
+    return filename.substr(0, last_dot);
+}
+
 int main(int argc, char *argv[]) {
     if (argc == 1) {
         std::cerr << "No program specified\n";
         return 1;
     }
 
-    yyin = fopen(argv[1], "r");
+    const char *filename_cstr = argv[1];
+
+    yyin = fopen(filename_cstr, "r");
     yydebug = 0;
 
     if (!yyin) {
-        std::cerr << "Cannot find file '" << argv[1] << "'\n";
+        std::cerr << "Cannot find file '" << filename_cstr << "'\n";
         return 1;
     }
 
@@ -110,17 +122,33 @@ int main(int argc, char *argv[]) {
         Generate LLVM
     */
 
+    std::string basename = get_base_name(std::string(filename_cstr));
+
     std::unique_ptr<llvm::Module> llvm_module;
     std::unique_ptr<llvm::LLVMContext> context;
 
     if (auto opt = generate_llvm(ast_root)) {
         llvm_module = std::move(opt->first);
         context = std::move(opt->second);
-    } else return 1;
+    } else {
+        llvm_module.release();
+        context.release();
+        return 1;
+    }
 
     if (tags & (1 << OUTPUT_LLVM)) {
-        write_module_to_file(*llvm_module, "llvm_output.ll");
+        std::string output_name(basename);
+        output_name.append(".ll");
+        write_module_to_file(*llvm_module, output_name);
     }
+
+    /*
+        Emit object file
+    */
+
+    std::string output_name(basename);
+    output_name.append(".o");
+    module_to_obj(*llvm_module, output_name, llvm::OptimizationLevel::O0);
 
     llvm_module.release();
     context.release();

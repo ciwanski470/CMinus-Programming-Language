@@ -48,7 +48,6 @@ typedef enum {
     EXPR_LOGNOT,            // !e
     EXPR_SIZEOF_EXPR,       // sizeof(e)
     EXPR_SIZEOF_TYPE,       // sizeof(type)
-    EXPR_MALLOC,            // malloc(size)
 
     /* cast */
     EXPR_CAST,              // (type) e
@@ -158,10 +157,7 @@ typedef enum {
     STMT_GOTO,
     STMT_CONTINUE,
     STMT_BREAK,
-    STMT_RETURN,
-    STMT_PRINT_STR,
-    STMT_PRINT_EXPR,
-    STMT_FREE
+    STMT_RETURN
 } stmt_kind;
 
 typedef enum {
@@ -250,7 +246,7 @@ typedef struct expr {
     union {
         char *id;                   // EXPR_IDENTIFIER (leaf) or EXPR_MEMBER (both dot and arrow)
         struct constant *const_val; // EXPR_CONSTANT (leaf)
-        char *str_val;              // EXPR_STR_LITERAL (leaf)
+        const char *str_val;        // EXPR_STR_LITERAL (leaf)
         struct expr *conditional;   // EXPR_CONDITIONAL (ternary)
         struct {
             struct type_name *type;     // EXPR_CAST, EXPR_SIZEOF_TYPE, and EXPR_INIT_LIST
@@ -348,6 +344,11 @@ typedef struct param_list {
     struct param_list *next;
 } param_list;
 
+typedef struct param_type_list {
+    struct param_list *params;
+    bool variadic;
+} param_type_list;
+
 
 // Initially in reverse order during parsing
 typedef struct decltr {
@@ -363,6 +364,7 @@ typedef struct decltr {
 
         struct {
             struct param_list *params;
+            bool variadic;
         } func;
     };
 
@@ -474,19 +476,6 @@ typedef struct stmt {
         struct {
             struct expr *result;
         } return_stmt;
-
-        union {
-            struct {
-                struct expr *item;
-                constant *size;
-            };
-
-            const char *str_val;
-        } print_stmt;
-
-        struct {
-            struct expr *item;
-        } free_stmt;
     };
 } stmt;
 
@@ -541,7 +530,7 @@ constant *make_constant(const_kind kind, char *value);
 expr *make_expr(expr_kind kind, expr *left, expr *right);
 expr *make_id_expr(char *id);
 expr *make_const_expr(constant *const_val);
-expr *make_string_expr(char *str);
+expr *make_string_expr(const char *str);
 expr *make_member_access_expr(expr_kind kind, expr *item, char *id);
 expr *make_init_expr(type_name *type, init_list *init);
 expr *make_sizeof_expr(type_name *type);
@@ -575,11 +564,12 @@ pointer *make_pointer(type_qual_list *quals, pointer *curr);
 decltr *make_empty_decltr(pointer *ptr); // For abstract
 decltr *make_id_decltr(char *id);
 decltr *make_decltr_array_suffix(decltr *prev, type_qual_list *quals, expr *size);
-decltr *make_decltr_proto_suffix(decltr *prev, param_list *params);
+decltr *make_decltr_proto_suffix(decltr *prev, param_type_list *params);
 void add_pointer(pointer *ptr, decltr *decltr);
 void extend_pointer(pointer *curr, pointer *extend);
 
 param_list *make_param_list(param_list *prev, decl *param_decl);
+param_type_list *make_param_type_list(param_list *params, bool variadic);
 
 initializer *make_expr_init(expr *assignment);
 initializer *make_list_init(init_list *list);
@@ -611,9 +601,6 @@ stmt *make_case_stmt(expr *case_expr, stmt *result);
 stmt *make_default_stmt(stmt *result);
 stmt *make_goto_stmt(char *label);
 stmt *make_return_stmt(expr *result);
-stmt *make_str_print_stmt(const char *str_val);
-stmt *make_expr_print_stmt(expr *item, constant *size);
-stmt *make_free_stmt(expr *item);
 stmt *make_empty_stmt(stmt_kind kind); // For continue, break, and empty return
 
 block_list *make_stmt_block_item(stmt *stmt);

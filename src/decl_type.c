@@ -108,7 +108,7 @@ static bool validate_type_specs(type_spec_list *tsl) {
     return true;
 }
 
-static sem_type_t *type_from_decl_specs(decl_specs *specs) {
+static sem_type_t *type_from_decl_specs(decl_specs *specs, bool is_pointer_to, bool is_decl) {
     if (!specs) return NULL;
     if (!validate_type_specs(specs->type_specs)) {
         push_error("*** invalid combination of type specifiers");
@@ -153,42 +153,44 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs) {
             return new_type;
         } else if (ts->kind == TS_SOU) {
             sou_spec *sou = ts->sou;
-            sem_symbol_t *sym = sem_lookup_tag(sou->name);
+            sem_symbol_t *sym = NULL;
+            sem_type_kind kind = (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION;
 
-            // Redefinition
-            if (sym && sym->is_definition && sou->decls) {
-                push_error("*** illegal redefinition of a struct or union");
-                return NULL;
-            }
+            // Try to define the current SoU if this is a definition
+            if (sou->decls) sym = sem_define_sou(sou->name, sou);
 
-            // Wrong tag kind
-            if (sym && sou->kind == SOU_STRUCT && sym->type->kind != ST_STRUCT) {
-                push_error("*** tag not of struct kind used as struct");
-                return NULL;
-            }
-            if (sym && sou->kind == SOU_UNION && sym->type->kind != ST_UNION) {
-                push_error("*** tag not of union kind used as union");
-                return NULL;
-            }
-
-            // First definition
-            if (sou->decls) {
-                sem_type_t *sou_type = make_sou_type(sou);
-                if (sou->name) sem_define_tag(sou->name, sou_type);
-                return sou_type;
-            }
-
-            // No definition (whether before or now)
-            // Will get a definition later when type is forced to be completed
+            // Get the current definition
             if (!sym) {
-                sym = sem_declare_tag(sou->name, (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION);
+                sym = sem_lookup_tag(sou->name);
+
                 if (!sym) {
-                    push_error("*** tag name already taken");
+                    // Declare for the first time
+                    sem_declare_tag(sou->name, kind);
+                } else {
+                    // Check for errors with the existing SoU
+                    if (sym->type->kind != kind) {
+                        if (kind == ST_STRUCT) push_error("*** struct tag used for non-struct");
+                        else push_error("*** union tag used for non-union");
+                        return NULL;
+                    }
+
+                    if (sou->decls) {
+                        push_error("*** illegal redefinition of a struct or union");
+                        return NULL;
+                    }
                 }
             }
+
+            // See if we can use the SoU here
+            if (is_decl && !is_pointer_to && !resolve_sou(sym->type)) {
+                push_error("*** incomplete type may only be used as a pointer");
+                return NULL;
+            }
+            
             sem_type_t *new_type = alloc_sem_type();
-            new_type->kind = sym->type->kind;
+            new_type->kind = kind;
             new_type->quals = quals;
+            new_type->sou_info = sym->type->sou_info;
             return new_type;
         } else if (ts->kind == TS_TYPEDEF) {
             sem_symbol_t *typedef_sym = sem_lookup_typedef(ts->type_name);
@@ -263,7 +265,8 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
 
     if (!d->array.size) {
         // No size implies incomplete type
-        return make_array_type(NULL, 0, true);
+        push_error("*** incomplete array type not allowed");
+        return NULL;
     }
 
     if (!fold_constants(d->array.size)) {
@@ -347,7 +350,7 @@ static sem_type_t *apply_decltr_chain(decltr *d, sem_type_t *base, bool is_param
                 break;
             case DCTR_FUNC: {
                 sem_type_list_t *params = make_parameter_type_list(d->func.params);
-                curr = make_func_type(NULL, params);
+                curr = make_func_type(NULL, params, d->func.variadic);
                 break;
             }
             default:;
@@ -460,9 +463,14 @@ static bool validate_type(sem_type_t *type) {
 sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param) {
     if (!specs) return NULL;
 
-    sem_type_t *base = type_from_decl_specs(specs);
+    bool is_pointer_to = false;
+    for (decltr *curr = d; curr; curr = curr->next) {
+        is_pointer_to = curr->ptr ? true : false;
+    }
+
+    sem_type_t *base = type_from_decl_specs(specs, is_pointer_to, d && d->kind == DCTR_ID);
     sem_type_t *final = apply_decltr_chain(d, base, is_param);
-    
+
     if (!validate_type(final)) {
         free_sem_type(final);
         free_sem_type(base);

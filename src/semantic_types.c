@@ -8,7 +8,6 @@
 #include "optimization.h"
 #include "error_handling.h"
 #include "decl_type.h"
-#include "type_table.h"
 #include "string_helpers.h"
 #include <stdbool.h>
 #include <string.h>
@@ -84,11 +83,12 @@ sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomple
     return new_type;
 }
 
-sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params) {
+sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params, bool variadic) {
     sem_type_t *new_type = alloc_sem_type();
     new_type->kind = ST_FUNC;
     new_type->func_info.return_type = return_type;
     new_type->func_info.params = params;
+    new_type->func_info.variadic = variadic;
     return new_type;
 }
 
@@ -252,9 +252,9 @@ bool type_is_float(sem_type_t *type) {
     ret_type = type; \
     break;
 
-#define check_error(condition, message) \
+#define check_error(condition, message, ...) \
     if (condition) { \
-        push_error(message); \
+        push_error(message, ##__VA_ARGS__); \
         return NULL; \
     }
 
@@ -273,7 +273,7 @@ sem_type_t *type_of_expr(expr *e) {
             sem_symbol_t *sym = sem_lookup_id(e->extra.id);
 
             check_error(!sym, "*** identifier not found")
-            check_error(!is_resolved(sym->type), "*** incomplete sou type is not allowed")
+            check_error(!resolve_sou(sym->type), "*** incomplete sou type is not allowed")
 
             e->type = sym->type;
             return e->type;
@@ -287,11 +287,7 @@ sem_type_t *type_of_expr(expr *e) {
             size_t size = size_of_string_lit(e->extra.str_val);
             check_error(size == SIZE_MAX, "*** string is invalid")
 
-            e->type = make_array_type(
-                make_primitive_type(ST_CHAR, false, TQ_CONST_MASK),
-                size + 1, // +1 for the null character
-                false
-            );
+            e->type = make_pointer_type(make_primitive_type(ST_CHAR, true, 0), 0);
             return e->type;
         }
         case EXPR_INIT_LIST:
@@ -299,21 +295,11 @@ sem_type_t *type_of_expr(expr *e) {
             return NULL;
         case EXPR_SIZEOF_TYPE: {
             sem_type_t *type = decl_type(e->extra.type->specs, e->extra.type->suffix, false);
-            if(!type) {
-                push_error("*** sizeof type is not a valid type");
-                free_sem_type(type);
-                return NULL;
-            }
-            if(type->kind == ST_FUNC) {
-                push_error("*** sizeof type cannot be a function type");
-                free_sem_type(type);
-                return NULL;
-            }
-            if(size_of_type(type) == SIZE_MAX) {
-                push_error("*** sizeof type is invalid or incomplete");
-                free_sem_type(type);
-                return NULL;
-            }
+
+            check_error(!type, "*** sizeof type is not a valid type")
+            check_error(type->kind == ST_FUNC, "*** sizeof type cannot be a function type")
+            check_error(!resolve_sou(type), "*** sizeof type must be complete")
+
             e->extra.tn_type = type;
             e->type = make_primitive_type(ST_LONG, false, 0);
             return e->type;
@@ -356,7 +342,7 @@ sem_type_t *type_of_expr(expr *e) {
                 params = params->next;
                 args = args->right;
             }
-            check_error(args, "*** function call has too many arguments")
+            check_error(args && !left_type->func_info.variadic, "*** function call has too many arguments")
             check_error(params, "*** function call has too few arguments")
 
             set_return(left_type->func_info.return_type)
@@ -402,8 +388,10 @@ sem_type_t *type_of_expr(expr *e) {
             check_error(
                 e->left->kind != EXPR_ID &&
                 e->left->kind != EXPR_MEMBER_ARROW &&
-                e->left->kind != EXPR_MEMBER_DOT,
-                "*** can only reference a memory location"
+                e->left->kind != EXPR_MEMBER_DOT &&
+                e->left->kind != EXPR_DEREF &&
+                e->left->kind != EXPR_SUBSCRIPT,
+                "*** can only take the reference of a valid lvalue"
             )
             set_return(make_pointer_type(left_type, 0))
         case EXPR_DEREF:
@@ -411,6 +399,7 @@ sem_type_t *type_of_expr(expr *e) {
                 left_type->kind != ST_POINTER && left_type->kind != ST_ARRAY,
                 "*** cannot dereference non-pointer type"
             )
+            check_error(!resolve_sou(left_type), "*** cannot dereference incomplete type")
             set_return(left_type->ptr_target)
         case EXPR_MINUS:
             check_error(!type_is_scalar(left_type), "*** minus operator can only be used on scalar types")
@@ -426,11 +415,8 @@ sem_type_t *type_of_expr(expr *e) {
             set_return(make_primitive_type(ST_INT, true, 0))
         case EXPR_SIZEOF_EXPR:
             check_error(left_type->kind == ST_FUNC, "*** sizeof type cannot be a function type")
-            check_error(size_of_type(left_type) == SIZE_MAX, "*** sizeof type is invalid or incomplete")
+            check_error(!resolve_sou(left_type), "*** sizeof type is incomplete")
             set_return(make_primitive_type(ST_LONG, false, 0))
-        case EXPR_MALLOC:
-            check_error(!type_is_integral(left_type), "*** can only malloc integer size")
-            set_return(make_pointer_type(make_primitive_type(ST_VOID, false, 0), 0))
         case EXPR_CAST: {
             sem_type_t *type = decl_type(e->extra.type->specs, e->extra.type->suffix, false);
             check_error(!type, "*** invalid type for cast expression")
@@ -458,24 +444,20 @@ sem_type_t *type_of_expr(expr *e) {
             set_return(arithmetic_promotion(left_type, int_type))
         }
         case EXPR_EQ: case EXPR_NEQ:
-            if (left_type->kind == ST_POINTER && right_type->kind == ST_POINTER) {
-                check_error(
-                    !types_equal(left_type->ptr_target, right_type->ptr_target),
-                    "*** pointers in an equality expression must point to the same type"
-                )
-            } else {
+            if (left_type->kind != ST_POINTER || right_type->kind != ST_POINTER) {
                 check_error(
                     !type_is_scalar(left_type) || !type_is_scalar(right_type),
                     "*** equality expressions require both operands as scalars or pointers"
                 )
             }
-            set_return(make_primitive_type(ST_INT, true, 0))
+            set_return(make_primitive_type(ST_BOOL, true, 0))
         case EXPR_LT: case EXPR_GT: case EXPR_LEQ: case EXPR_GEQ:
             check_error(
-                !type_is_scalar(left_type) || !type_is_scalar(right_type),
+                (!type_is_scalar(left_type) && left_type->kind != ST_POINTER) ||
+                (!type_is_scalar(right_type) && right_type->kind != ST_POINTER),
                 "*** relational expressions require both operands as scalar"
             )
-            set_return(make_primitive_type(ST_INT, true, 0))
+            set_return(make_primitive_type(ST_BOOL, true, 0))
         case EXPR_BITAND: case EXPR_BITOR: case EXPR_BITXOR: {
             check_error(
                 !type_is_integral(left_type) || !type_is_integral(right_type),
@@ -497,10 +479,12 @@ sem_type_t *type_of_expr(expr *e) {
                 "*** conditional expression must be of integer type"
             )
             check_error(
-                !types_equal(left_type, right_type),
-                "*** ternary expression requires both results to be equal"
+                types_parsable(left_type, right_type) != PARSE_IMPLICIT ||
+                types_parsable(right_type, left_type) != PARSE_IMPLICIT,
+                "*** ternary expression requires both results to be of similar type; left type: %s; right type: %s",
+                type_to_s(left_type), type_to_s(right_type)
             )
-            set_return(left_type) // right_type is identical
+            set_return(left_type) // right_type works too
         }
         case EXPR_ASSIGN: {
             bool modifiable = false;
@@ -515,7 +499,7 @@ sem_type_t *type_of_expr(expr *e) {
                 modifiable = false;
             }
             check_error(!modifiable, "*** assignment expression requires modifiable lvalue")
-            set_return(left_type)
+            set_return(right_type)
         }
         default:;
     }
@@ -730,7 +714,7 @@ parse_req types_parsable(sem_type_t *from, sem_type_t *to) {
     }
 
     if (type_is_scalar(from) && type_is_scalar(to)) {
-        return PARSE_EXPLICIT;
+        return PARSE_IMPLICIT;
     }
 
     if (from->kind == ST_ARRAY && to->kind == ST_POINTER) {
@@ -752,9 +736,9 @@ size_t size_of_type(sem_type_t *type) {
             return 4;
         case ST_LONG: case ST_LL: case ST_DOUBLE: case ST_POINTER:
             return 8;
-        case ST_ARRAY:
-            return size_of_type(type->arr_info.element_type) * type->arr_info.size;
         // Highkey don't wanna do it myself
+        case ST_ARRAY:
+            return SIZE_MAX;
         case ST_UNION: case ST_STRUCT:
             return SIZE_MAX;
         case ST_FUNC:
@@ -778,15 +762,16 @@ sem_type_t *arithmetic_promotion(sem_type_t *a, sem_type_t *b) {
 size_t size_of_string_lit(const char *s) {
     int n = strlen(s);
     size_t size = 0;
-    for (int i=0; i<n; i++) {
+    for (int i=1; i<n-1; i++) {
         size++;
         if (s[i] == '\\') {
             if (i == n-1 || i == n-2) return SIZE_MAX;
-            if (s[i+1] == 'n' || s[i+1] == 't' || s[i+1] == '"' || s[i+1] == '\\') {
-                i++;
-                size++;
-            } else {
-                return SIZE_MAX;
+            switch (s[i+1]) {
+                case 'a': case 'b': case 'f': case 'n': case 'r':
+                case 't': case 'v': case '\\': case '\'': case '\"':
+                case '?': case '0':
+                    i++; size++; break;
+                default: return SIZE_MAX;
             }
         }
     }
@@ -815,16 +800,40 @@ int get_char_val(const char *s) {
     return (us) ? u.uc : u.sc;
 }
 
-bool is_resolved(sem_type_t *sou_type) {
-    return sou_type->kind != ST_STRUCT && sou_type->kind != ST_UNION;
+typedef struct sou_info_entry {
+    sem_sou_info_t *info;
+    struct sou_info_entry *next;
+} *sou_info_set_t[31];
 
+static bool resolve_sou_solver(sem_type_t *sou_type, sou_info_set_t *seen) {
     // Non-SoUs are resolved by default
     if (sou_type->kind != ST_STRUCT && sou_type->kind != ST_UNION) return true;
     if (sou_type->sou_info->complete) return true;
 
-    /*
-        COMPLETE LATER
-    */
+    sem_sou_info_t *info = sou_type->sou_info;
+
+    int hash = ((uintptr_t) info) % 31;
+
+    // Ensure we haven't already seen this sou_info
+    for (struct sou_info_entry *entry = (*seen)[hash]; entry; entry = entry->next) {
+        if (entry->info == info) return false;
+    }
+
+    struct sou_info_entry *new_entry = malloc(sizeof(struct sou_info_entry));
+    new_entry->info = info;
+    new_entry->next = (*seen)[hash];
+    (*seen)[hash] = new_entry;
+
+    for (sem_member_t *mem = info->members; mem; mem = mem->next) {
+        if (!resolve_sou_solver(mem->type, seen)) return false;
+    }
+    info->complete = true;
+    return true;
+}
+
+bool resolve_sou(sem_type_t *sou_type) {
+    sou_info_set_t seen;
+    return resolve_sou_solver(sou_type, &seen);
 }
 
 sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name) {
@@ -837,8 +846,6 @@ sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name) {
 }
 
 sem_type_t *make_sou_type(sou_spec *sou) {
-    return NULL; // For now, all SoUs are invalid
-
     sem_sou_info_t *info = alloc_sou_info();
     sem_member_t *prev_member = NULL;
 

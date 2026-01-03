@@ -16,9 +16,8 @@ void yyerror(const char *s) {
 %}
 
 %token DEFAULT IF ELSE SWITCH CASE WHILE DO FOR GOTO CONTINUE BREAK RETURN
-%token TYPEDEF EXTERN STATIC AUTO REGISTER INLINE
+%token TYPEDEF EXTERN STATIC INLINE
 %token ENUM STRUCT UNION
-%token PRINT MALLOC FREE
 
 %token CHAR INT SHORT LONG FLOAT DOUBLE BOOL VOID SIGNED UNSIGNED
 %token CONST RESTRICT VOLATILE
@@ -37,7 +36,7 @@ void yyerror(const char *s) {
 %token IDENTIFIER TYPEDEF_NAME ENUM_CONST 
 
 %token CONST_CHAR CONST_SHORT CONST_INT CONST_LONG CONST_FLOAT CONST_DOUBLE
-%token CONST_PTR STR_LITERAL FUNC_NAME SIZEOF
+%token STR_LITERAL FUNC_NAME SIZEOF
 
 // Precedence to resolve shift-reduce conflict in if-statements
 %nonassoc NO_ELSE
@@ -66,6 +65,7 @@ void yyerror(const char *s) {
     pointer *pointer;
     type_qual_list *type_qual_list;
     param_list *param_list;
+    param_type_list *param_type_list;
     type_name *type_name;
     stmt *stmt;
     block_list *block_list;
@@ -80,7 +80,6 @@ void yyerror(const char *s) {
 %type <sval> TYPEDEF_NAME
 %type <sval> CONST_INT
 %type <sval> CONST_FLOAT
-%type <sval> CONST_PTR
 %type <sval> STR_LITERAL
 
 // Expressions
@@ -103,8 +102,8 @@ void yyerror(const char *s) {
 %type <expr> conditional_expression
 %type <expr> assignment_expression
 %type <expr> constant_expression
+%type <expr> string
 %type <constant> constant
-%type <sval> string
 
 // Operators
 %type <int_val> unary_operator compound_assignment
@@ -127,12 +126,13 @@ void yyerror(const char *s) {
 %type <decltr> declarator direct_declarator abstract_declarator direct_abstract_declarator
 %type <pointer> pointer
 %type <type_qual_list> type_qualifier_list
-%type <param_list> parameter_type_list parameter_list
+%type <param_list> parameter_list
+%type <param_type_list> parameter_type_list 
 %type <type_name> type_name
 
 // Statements and program
 %type <stmt> statement expression_statement labeled_statement compound_statement
-%type <stmt> selection_statement iteration_statement jump_statement print_statement free_statement
+%type <stmt> selection_statement iteration_statement jump_statement
 %type <block_list> block_item block_item_list
 %type <func_def> function_definition
 %type <ext_decl> external_declaration
@@ -152,19 +152,18 @@ void yyerror(const char *s) {
 primary_expression
 	: IDENTIFIER            { $$ = make_id_expr($1); free($1); }
 	| constant              { $$ = make_const_expr($1); }
-	| string                { $$ = make_string_expr($1); }
+	| string                { $$ = $1; }
 	| '(' expression ')'    { $$ = $2; }
 	;
 
 constant
     : CONST_INT     { $$ = make_constant(CONSTANT_INT, $1); free($1); }
     | CONST_FLOAT   { $$ = make_constant(CONSTANT_FLOAT, $1); free($1); }
-    | CONST_PTR     { $$ = make_constant(CONSTANT_PTR, $1); free($1); }
     | ENUM_CONST    { $$ = make_constant(CONSTANT_ENUM, $1); free($1); }
 
 string
-    : STR_LITERAL   { $$ = $1; free($1); }
-    | FUNC_NAME     { $$ = func_name(); }
+    : STR_LITERAL   { $$ = make_string_expr($1); free($1); }
+    | FUNC_NAME     { $$ = make_string_expr(func_name()); }
 
 postfix_expression
 	: primary_expression                                    { $$ = $1; }
@@ -191,7 +190,6 @@ unary_expression
 	| unary_operator cast_expression    { $$ = make_expr($1, $2, 0); }
 	| SIZEOF unary_expression           { $$ = make_expr(EXPR_SIZEOF_EXPR, $2, 0); }
 	| SIZEOF '(' type_name ')'          { $$ = make_sizeof_expr($3); }
-    | MALLOC '(' expression ')'         { $$ = make_expr(EXPR_MALLOC, $3, 0); }
 	;
 
 unary_operator
@@ -331,8 +329,6 @@ storage_class_specifier
 	: TYPEDEF   { $$ = SC_TYPEDEF; }
 	| EXTERN    { $$ = SC_EXTERN; }
 	| STATIC    { $$ = SC_STATIC; }
-	| AUTO      { $$ = SC_AUTO; }
-	| REGISTER  { $$ = SC_REGISTER; }
 	;
 
 type_specifier
@@ -451,7 +447,8 @@ type_qualifier_list
 
 
 parameter_type_list
-	: parameter_list    { $$ = $1; }
+	: parameter_list                { $$ = make_param_type_list($1, 0); }
+    | parameter_list ',' ELLIPSIS   { $$ = make_param_type_list($1, 1); }
 	;
 
 parameter_list
@@ -506,8 +503,6 @@ statement
 	| selection_statement   { $$ = $1; }
 	| iteration_statement   { $$ = $1; }
 	| jump_statement        { $$ = $1; }
-    | print_statement       { $$ = $1; }
-    | free_statement        { $$ = $1; }
 	;
 
 labeled_statement
@@ -560,15 +555,6 @@ jump_statement
 	| RETURN ';'            { $$ = make_return_stmt(0); }
 	| RETURN expression ';' { $$ = make_return_stmt($2); }
 	;
-
-print_statement
-    : PRINT '(' STR_LITERAL ')' ';'                         { $$ = make_str_print_stmt($3); }
-    | PRINT '(' postfix_expression ',' CONST_INT ')' ';'    { $$ = make_expr_print_stmt($3, make_constant(CONSTANT_INT, $5)); }
-    ;
-
-free_statement
-    : FREE '(' expression ')' ';'   { $$ = make_free_stmt($3); }
-    ;
 
 translation_unit
 	: external_declaration                  { $$ = make_trans_unit(0, $1); ast_root = $$; }

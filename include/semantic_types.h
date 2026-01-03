@@ -73,14 +73,14 @@ struct sem_sou_info;
 struct sem_member;
 
 typedef struct sem_symbol {
-    char *name;
+    const char *name;
     int enum_val; // For enum constants
 
+    storage_class sc; // To be honest, I don't think this is necessary but it could help
     sem_namespace ns;
     struct sem_type *type;
 
     bool is_definition;
-    bool is_tentative;
 } sem_symbol_t;
 
 typedef struct sem_type {
@@ -96,6 +96,7 @@ typedef struct sem_type {
         struct {
             struct sem_type *return_type;
             struct sem_type_list *params;
+            bool variadic;
         } func_info;
 
         struct {
@@ -133,7 +134,7 @@ sem_sou_info_t *alloc_sou_info(void);
 sem_type_t *make_primitive_type(sem_type_kind kind, bool is_signed, unsigned short quals);
 sem_type_t *make_pointer_type(sem_type_t *target, unsigned short quals);
 sem_type_t *make_array_type(sem_type_t *element_type, size_t size, bool incomplete);
-sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params);
+sem_type_t *make_func_type(sem_type_t *return_type, sem_type_list_t *params, bool variadic);
 sem_type_t *make_enum_type(enum_spec *enums);
 sem_type_t *make_sou_type(sou_spec *sou);
 
@@ -178,5 +179,5 @@ size_t size_of_string_lit(const char *s);
 
 int get_char_val(const char *s);
 
-bool is_resolved(sem_type_t *sou_type);
+bool resolve_sou(sem_type_t *sou_type);
 sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name);

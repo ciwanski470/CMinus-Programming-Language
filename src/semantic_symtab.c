@@ -7,7 +7,6 @@
 #include "error_handling.h"
 #include "ast.h"
 #include "optimization.h"
-#include "type_table.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -32,14 +31,11 @@ void sem_push_scope(void) {
     memset(new_scope->buckets, 0, sizeof(new_scope->buckets));
     new_scope->prev = curr_scope;
     curr_scope = new_scope;
-
-    ttable_push_scope();
 }
 
 void free_symbol(sem_symbol_t *sym) {
     if (!sym) return;
 
-    // Note: does not free type because that value gets attached to declarations
     free(sym->name);
     free(sym);
 }
@@ -59,27 +55,25 @@ void sem_pop_scope(void) {
     scope_t *old = curr_scope;
     curr_scope = curr_scope->prev;
     free(old);
-
-    ttable_pop_scope();
 }
 
 static sem_symbol_t *make_sem_symbol(
-    char *name,
+    const char *name,
     int enum_val,
+    storage_class sc,
     sem_namespace ns,
     sem_type_t *type,
-    bool is_definition,
-    bool is_tentative
+    bool is_definition
 ) {
     sem_symbol_t *new_sym = calloc(1, sizeof(sem_symbol_t));
     check_alloc_error(new_sym, "Alloc error creating new symbol in symbol table");
 
     new_sym->name = name;
     new_sym->enum_val = enum_val;
+    new_sym->sc = sc;
     new_sym->ns = ns;
     new_sym->type = type;
     new_sym->is_definition = is_definition;
-    new_sym->is_tentative = is_tentative;
 
     return new_sym;
 }
@@ -127,12 +121,12 @@ static bool sem_insert_symbol(sem_symbol_t *sym) {
     return true;
 }
 
-sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, bool is_tentative, bool is_definition) {
+sem_symbol_t *sem_declare_id(const char *name, sem_type_t *type, storage_class sc, bool is_definition) {
     if (!curr_scope) return NULL;
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_ID, type, is_definition, is_tentative);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, sc, SEM_NS_ID, type, is_definition);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
@@ -145,7 +139,7 @@ sem_symbol_t *sem_define_enum(const char *name, int val) {
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, val, SEM_NS_ENUM, NULL, true, false);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, val, SC_NONE, SEM_NS_ENUM, NULL, true);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
@@ -161,7 +155,7 @@ sem_symbol_t *sem_declare_tag(const char *name, sem_type_kind kind) {
     sem_type_t *new_type = alloc_sem_type();
     new_type->kind = kind;
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_TAG, new_type, false, false);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TAG, new_type, false);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
@@ -174,28 +168,7 @@ sem_symbol_t *sem_define_tag(const char *name, sem_type_t *type) {
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_TAG, type, true, false);
-    if (!sem_insert_symbol(new_sym)) {
-        free_symbol(new_sym);
-        return NULL;
-    } 
-    return new_sym;
-}
-
-sem_symbol_t *sem_declare_sou(const char *name, sem_type_kind kind) {
-    if (!curr_scope) return NULL;
-    if (kind != ST_STRUCT && kind != ST_UNION) return NULL;
-
-    ttable_entry_kind ttable_kind = (kind == ST_STRUCT) ? TTABLE_STRUCT : TTABLE_UNION;
-    size_t id = ttable_reserve_entry(name, ttable_kind);
-    sem_type_t *type = get_type_info(id);
-
-    if (type->sou_info->complete) {
-        return NULL;
-    }
-
-    const char *name_dup = strdup(name);
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_TAG, type, false, false);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TAG, type, true);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
@@ -206,22 +179,15 @@ sem_symbol_t *sem_declare_sou(const char *name, sem_type_kind kind) {
 sem_symbol_t *sem_define_sou(const char *name, sou_spec *sou) {
     if (!curr_scope) return NULL;
 
-    sem_symbol_t *sym = sem_lookup_tag(name);
-    sem_type_kind sou_kind = (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION;
-    
-    if (sym->type->kind != sou_kind) {
-        push_error("*** tag may not be used for two different types");
+    sem_type_t *sou_type = make_sou_type(sou);
+    const char *name_dup = strdup(name);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TAG, sou_type, true);
+
+    if (!sem_insert_symbol(new_sym)) {
+        free_symbol(new_sym);
         return NULL;
     }
-
-    if (sym->type->sou_info) {
-        push_error("*** redefinition of struct or union not allowed");
-        return NULL;
-    }
-
-    sem_type_t *sou_type = get_type_info(ttable_push_sou(sou));
-    sym->type = sou_type;
-    return sym;
+    return new_sym;
 }
 
 sem_symbol_t *sem_define_typedef(const char *name, sem_type_t *type) {
@@ -229,11 +195,11 @@ sem_symbol_t *sem_define_typedef(const char *name, sem_type_t *type) {
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_TYPEDEF, type, false, false);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TYPEDEF, type, false);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
-    } 
+    }
     return new_sym;
 }
 
@@ -242,7 +208,7 @@ sem_symbol_t *sem_define_label(const char *name) {
 
     const char *name_dup = strdup(name);
 
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SEM_NS_LABEL, NULL, false, false);
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_LABEL, NULL, false);
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;

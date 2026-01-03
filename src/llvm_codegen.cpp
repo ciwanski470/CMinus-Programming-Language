@@ -11,10 +11,21 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/IR/LegacyPassManager.h"
 
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/TargetParser/Host.h"
 #include "llvm/Support/FileSystem.h"
-#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/MC/TargetRegistry.h"
+
+#include "llvm/Analysis/LoopAnalysisManager.h"
+#include "llvm/Analysis/CGSCCPassManager.h"
+
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/OptimizationLevel.h"
 
 #include "llvm_codegen.hpp"
 
@@ -89,6 +100,7 @@ static scope_stack<Value> named_values;
 static scope_stack<BasicBlock> labels;
 static std::stack<BasicBlock *> break_dest;
 static std::stack<BasicBlock *> continue_dest;
+static std::stack<SwitchInst *> switch_stmts;
 static std::map<sem_sou_info_t *, StructType *> sem_struct_to_llvm;
 static std::map<sem_sou_info_t *, StructType *> sem_union_to_llvm;
 
@@ -207,7 +219,7 @@ static Type *sem_type_to_llvm(sem_type_t *t) {
             for (sem_type_list_t *tl = t->func_info.params; tl; tl = tl->next) {
                 params.push_back(sem_type_to_llvm(tl->type));
             }
-            FunctionType *ft = FunctionType::get(ret, params, false);
+            FunctionType *ft = FunctionType::get(ret, params, t->func_info.variadic);
             return ft;
         }
         default:
@@ -298,9 +310,48 @@ static Value *expr_codegen_lvalue(expr *e) {
     }
 }
 
-static std::string prepare_str_literal(const char *str_lit) {
-    std::string new_str(str_lit);
-    return new_str.substr(1, new_str.size()-2);
+static std::string prepare_str_literal(const char *s) {
+    if (!s) return {};
+    std::string out;
+    size_t len = std::strlen(s);
+    out.reserve(len);
+
+    for (size_t i = 1; i<len-1;) {
+        char c = s[i];
+        if (c == '\\') {
+            // If backslash is last char, keep it
+            if (s[i+1] == '\0') {
+                out.push_back('\\');
+                break;
+            }
+            char next = s[i+1];
+            switch (next) {
+                case 'a': out.push_back('\a'); i += 2; break;
+                case 'b': out.push_back('\b'); i += 2; break;
+                case 'f': out.push_back('\f'); i += 2; break;
+                case 'n': out.push_back('\n'); i += 2; break;
+                case 'r': out.push_back('\r'); i += 2; break;
+                case 't': out.push_back('\t'); i += 2; break;
+                case 'v': out.push_back('\v'); i += 2; break;
+                case '\\': out.push_back('\\'); i += 2; break;
+                case '\'': out.push_back('\''); i += 2; break;
+                case '\"': out.push_back('\"'); i += 2; break;
+                case '?': out.push_back('\?'); i += 2; break;
+                case '0': out.push_back('\0'); i += 2; break; // single '\0'
+                default:
+                    // Unknown escape: preserve the backslash and continue so the
+                    // next character will be processed normally on the next loop.
+                    out.push_back('\\');
+                    ++i;
+                    break;
+            }
+        } else {
+            out.push_back(c);
+            ++i;
+        }
+    }
+
+    return out;
 }
 
 static Value *expr_codegen(expr *e) {
@@ -709,19 +760,6 @@ static Value *expr_codegen(expr *e) {
             return ConstantInt::get(IntegerType::get(*context, 64), layout.getTypeAllocSize(t));
         }
 
-        case EXPR_MALLOC: {
-            Value *size = expr_codegen(e->left);
-            Value *call = builder->CreateMalloc(
-                Type::getInt64Ty(*context),
-                PointerType::get(*context, 0),
-                size,
-                nullptr,
-                nullptr,
-                "malloc.call"
-            );
-            return call;
-        }
-
         default: return nullptr;
     }
 }
@@ -773,9 +811,50 @@ static void stmt_codegen(stmt *s) {
 
             break;
         }
-        case STMT_SWITCH:
-            // Implement later
-            return;
+        case STMT_SWITCH: {
+            Function *curr_func = builder->GetInsertBlock()->getParent();
+            BasicBlock *end_block = BasicBlock::Create(*context, "switch.end", curr_func);
+
+            Value *cond = expr_codegen(s->conditional_stmt.cond);
+            switch_stmts.push(builder->CreateSwitch(cond, nullptr));
+            break_dest.push(end_block);
+
+            stmt_codegen(s->conditional_stmt.body);
+            if (!builder->GetInsertBlock()->getTerminator()) {
+                builder->CreateBr(end_block);
+            }
+
+            switch_stmts.pop();
+            break_dest.pop();
+
+            break;
+        }
+        case STMT_CASE:
+        case STMT_DEFAULT: {
+            assert(!switch_stmts.empty());
+
+            Function *curr_func = builder->GetInsertBlock()->getParent();
+            std::string name = (s->kind == STMT_CASE) ? "switch.case" : "switch.default";
+            BasicBlock *dest = BasicBlock::Create(*context, name, curr_func);
+            if (!builder->GetInsertBlock()->getTerminator()) {
+                builder->CreateBr(dest);
+            }
+            builder->SetInsertPoint(dest);
+            
+            if (s->kind == STMT_CASE) {
+                Value *condV = expr_codegen(s->case_stmt.case_expr);
+                ConstantInt *condC = nullptr;
+                if (auto c = cast<ConstantInt>(condV)) condC = c;
+                assert(condC);
+
+                switch_stmts.top()->addCase(condC, dest);
+                stmt_codegen(s->case_stmt.result);
+            } else {
+                switch_stmts.top()->setDefaultDest(dest);
+                stmt_codegen(s->default_stmt.result);
+            }
+            break;
+        }
         case STMT_WHILE: {
             Function *curr_func = builder->GetInsertBlock()->getParent();
             BasicBlock *cond_block = BasicBlock::Create(*context, "while.cond", curr_func);
@@ -803,9 +882,9 @@ static void stmt_codegen(stmt *s) {
         }
         case STMT_DO: {
             Function *curr_func = builder->GetInsertBlock()->getParent();
-            BasicBlock *cond_block = BasicBlock::Create(*context, "while.cond", curr_func);
-            BasicBlock *body_block = BasicBlock::Create(*context, "while.body", curr_func);
-            BasicBlock *end_block = BasicBlock::Create(*context, "while.end", curr_func);
+            BasicBlock *cond_block = BasicBlock::Create(*context, "do.while.cond", curr_func);
+            BasicBlock *body_block = BasicBlock::Create(*context, "do.while.body", curr_func);
+            BasicBlock *end_block = BasicBlock::Create(*context, "do.while.end", curr_func);
 
             builder->CreateBr(body_block);
             builder->SetInsertPoint(cond_block);
@@ -869,14 +948,6 @@ static void stmt_codegen(stmt *s) {
             
             break;
         }
-        case STMT_CASE: {
-            // Implement later
-            return;
-        }
-        case STMT_DEFAULT: {
-            // Implement later
-            return;
-        }
         case STMT_GOTO: {
             BasicBlock *dest = labels[s->goto_stmt.label];
             assert(dest);
@@ -917,11 +988,16 @@ static void decl_codegen(decl *d, bool is_global) {
             for (sem_type_list_t *tl = decl_type->func_info.params; tl; tl = tl->next) {
                 param_types.push_back(sem_type_to_llvm(tl->type));
             }
-            FunctionType *ft = FunctionType::get(ret, param_types, false);
+            FunctionType *ft = FunctionType::get(ret, param_types, decl_type->func_info.variadic);
 
-            Function::Create(
-                ft, Function::ExternalLinkage, curr->decltr->id, *llvm_module
+            GlobalValue::LinkageTypes linkage =
+                (d->specs->storage == SC_STATIC) ? Function::InternalLinkage : Function::ExternalLinkage;
+
+            Function *fn = Function::Create(
+                ft, linkage, curr->decltr->id, *llvm_module
             );
+
+            named_values.push(std::string(fn->getName()), fn);
 
             // Set arg names maybe?
         }
@@ -949,10 +1025,15 @@ static void decl_codegen(decl *d, bool is_global) {
                 }
             }
 
+            GlobalValue::LinkageTypes linkage =
+                (d->specs->storage == SC_STATIC) ?
+                    GlobalValue::InternalLinkage :
+                    GlobalValue::ExternalLinkage;
+
             GlobalVariable *var = new GlobalVariable(
                 t,
                 decl_type->quals & TQ_CONST_MASK,
-                GlobalValue::ExternalLinkage,
+                linkage,
                 init,
                 curr->decltr->id
             );
@@ -980,7 +1061,6 @@ static void func_codegen(func_def *fd) {
         arg.setName(param->param_decl->param_decltr->id);
         named_values.push(std::string(arg.getName()), &arg);
     }
-    named_values.push(std::string(fd->decltr->id), func);
 
     BasicBlock *body = BasicBlock::Create(*context, "func.entry", func);
     builder->SetInsertPoint(body);
@@ -1049,6 +1129,69 @@ generate_llvm(translation_unit *ast) {
     return std::optional{ std::pair(std::move(llvm_module), std::move(context)) };
 }
 
-void module_to_asm(Module &m, const std::string &filename, const std::string &TargetTripleStr) {
+void module_to_obj(
+    Module &M,
+    const std::string &filename,
+    const OptimizationLevel &optimization,
+    const std::string &TargetTripleStr
+) {
+    InitializeAllTargetInfos();
+    InitializeAllTargets();
+    InitializeAllTargetMCs();
+    InitializeAllAsmParsers();
+    InitializeAllAsmPrinters();
 
+    std::string error;
+    const Target *target = TargetRegistry::lookupTarget(TargetTripleStr, error);
+    if (!target) {
+        errs() << "Target lookup failed: " << error << "\n";
+        return;
+    }
+
+    TargetOptions opt;
+    auto cpu = "generic";
+    auto features = "";
+    TargetMachine *TM = target->createTargetMachine(
+        TargetTripleStr,
+        cpu,
+        features,
+        opt,
+        std::optional<Reloc::Model>()
+    );
+
+    M.setTargetTriple(TM->getTargetTriple());
+    M.setDataLayout(TM->createDataLayout());
+
+    LoopAnalysisManager LAM;
+    FunctionAnalysisManager FAM;
+    CGSCCAnalysisManager CGAM;
+    ModuleAnalysisManager MAM;
+
+    PassBuilder PB(TM);
+
+    PB.registerModuleAnalyses(MAM);
+    PB.registerCGSCCAnalyses(CGAM);
+    PB.registerFunctionAnalyses(FAM);
+    PB.registerLoopAnalyses(LAM);
+    PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+    ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(optimization);
+
+    MPM.run(M, MAM);
+
+    std::error_code ec;
+    raw_fd_ostream dest(filename, ec, llvm::sys::fs::OF_None);
+    if (ec) {
+        errs() << "Could not open file: " << ec.message() << "\n";
+        return;
+    }
+
+    legacy::PassManager CodeGenPM;
+    if (TM->addPassesToEmitFile(CodeGenPM, dest, nullptr, CodeGenFileType::ObjectFile)) {
+        errs() << "Target does not support assembly emission\n";
+        return;
+    }
+
+    CodeGenPM.run(M);
+    dest.flush();
 }

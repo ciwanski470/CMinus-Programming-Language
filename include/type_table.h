@@ -5,6 +5,8 @@
         Prevents decl structs from referencing null pointers
 
     Note that no function in this file will report errors
+
+    this file does NOTHING
 */
 
 #pragma once

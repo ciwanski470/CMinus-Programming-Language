@@ -8,7 +8,6 @@
 #include "semantic_symtab.h"
 #include "semantic_types.h"
 #include "error_handling.h"
-#include "type_table.h"
 #include "optimization.h"
 #include "string_helpers.h"
 #include <stdbool.h>
@@ -162,10 +161,22 @@ static bool process_decl(decl *dcl, scope_kind scope) {
                 continue;
             }
 
-            if (specs->storage != SC_NONE && specs->storage != SC_TYPEDEF) {
-                push_error("*** storage classes are not included in this language");
-                success = false;
-                continue;
+            if (scope == SEM_SCOPE_FILE) {
+                if (
+                    specs->storage != SC_NONE &&
+                    specs->storage != SC_EXTERN &&
+                    specs->storage != SC_STATIC
+                ) {
+                    push_error("*** file scope storage class may only be static or extern");
+                    success = false;
+                    continue;
+                }
+            } else {
+                if (specs->storage == SC_EXTERN || specs->storage == SC_STATIC) {
+                    push_error("*** linkage may not be specified outside of file scope");
+                    success = false;
+                    continue;
+                }
             }
             
             sem_type_t *type = decl_type(specs, d, false);
@@ -202,9 +213,7 @@ static bool process_decl(decl *dcl, scope_kind scope) {
                 success = false;
                 continue;
             }
-
-            bool tentative = (scope == SEM_SCOPE_FILE && !init);
-            sem_symbol_t *sym = sem_declare_id(d->id, type, tentative, (bool) init);
+            sem_symbol_t *sym = sem_declare_id(d->id, type, specs->storage, (bool) init);
             if (!sym) {
                 push_error("*** invalid redefinition of a variable");
                 success = false;
@@ -215,9 +224,13 @@ static bool process_decl(decl *dcl, scope_kind scope) {
     } else {
         sem_type_t *type = decl_type(specs, dcl->param_decltr, true);
         if (!type) return false;
-        sem_symbol_t *sym = sem_declare_id(dcl->param_decltr->id, type, false, false);
+        if (dcl->param_decltr->kind != DCTR_ID) {
+            push_error("*** parameter missing an identifier");
+            return false;
+        }
+        sem_symbol_t *sym = sem_declare_id(dcl->param_decltr->id, type, specs->storage, false);
         if (!sym) {
-            push_error("*** invalid redefinition of a variable");
+            push_error("*** invalid redefinition of an identifier");
             success = false;
         }
         dcl->param_type = type;
@@ -412,28 +425,6 @@ static bool process_statement(stmt *s) {
                 success = false;
             }
             break;
-        case STMT_PRINT_EXPR: {
-            sem_type_t *type = type_of_expr(s->print_stmt.item);
-            if (
-                (type->kind != ST_ARRAY || type->arr_info.element_type->kind != ST_CHAR) &&
-                (type->kind != ST_POINTER || type->ptr_target->kind != ST_CHAR)
-            ) {
-                push_error("*** type of an expression print statement must be pointer to char or array of char");
-                success = false;
-            }
-            if (!fill_const_val(s->print_stmt.size, make_primitive_type(ST_SHORT, false, 0))) {
-                push_error("*** print statement size is an invalid constant");
-                success = false;
-            }
-            break;
-        }
-        case STMT_FREE: {
-            if (type_of_expr(s->free_stmt.item)->kind != ST_POINTER) {
-                push_error("*** only allowed to free pointer types");
-                success = false;
-            }
-            return success;
-        }
         default:;
     }
 
@@ -489,7 +480,7 @@ bool traverse_ast(translation_unit *ast) {
             }
 
             sem_type_t *func_type = decl_type(func->specs, func->decltr, false);
-            sem_declare_id(func->decltr->id, func_type, false, true);
+            sem_declare_id(func->decltr->id, func_type, func->specs->storage, true);
             
             // Handle parameters
             // In a function definition, the second part of the declarator contains the parameters
@@ -533,8 +524,8 @@ bool traverse_ast(translation_unit *ast) {
         push_error("*** main function not found");
         return false;
     }
-    if (main_func->type->func_info.return_type->kind != ST_VOID) {
-        push_error("*** main function must return void");
+    if (main_func->type->func_info.return_type->kind != ST_INT) {
+        push_error("*** main function must return int");
         return false;
     }
     if (main_func->type->func_info.params) {

