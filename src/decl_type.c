@@ -7,6 +7,7 @@
 #include "error_handling.h"
 #include "ast.h"
 #include "optimization.h"
+#include "string_helpers.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -20,8 +21,7 @@ static bool validate_type_specs(type_spec_list *tsl) {
     if (!tsl) return true;
 
     size_t total_specs = 0;
-    int *count = calloc(MAX_TS_KIND + 1, sizeof(int));
-    check_alloc_error(count, "Alloc error when creating new count array");
+    int count[MAX_TS_KIND+1] = {0};
 
     for (type_spec_list *t = tsl; t; t = t->next) {
         count[t->type->kind]++;
@@ -30,7 +30,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
 
     // These types must be alone if they are used at all
     if (count[TS_TYPEDEF] + count[TS_ENUM] + count[TS_SOU] + count[TS_VOID] + count[TS_BOOL] > 0 && total_specs > 1) {
-        free(count);
         return false;
     }
 
@@ -38,17 +37,15 @@ static bool validate_type_specs(type_spec_list *tsl) {
         // Only long can have more than one copy
         if (kind == TS_LONG) {
             if (count[kind] > 2) {
-                free(count);
                 return false;
             }
         } else {
             if (count[kind] > 1) {
-                free(count);
                 return false;
             }
 
-            // Long can only be used with "int" and "double"
-            if (count[kind] && count[TS_LONG] && kind != TS_INT && kind != TS_DOUBLE) {
+            // Long can only be used with "int"
+            if (count[kind] && count[TS_LONG] && kind != TS_INT && kind != TS_SIGNED && kind != TS_UNSIGNED) {
                 return false;
             }
         }
@@ -56,15 +53,7 @@ static bool validate_type_specs(type_spec_list *tsl) {
 
     // Can't have both short and long or both signed and unsigned
     if ((count[TS_SHORT] && count[TS_LONG]) || (count[TS_SIGNED] && count[TS_UNSIGNED])) {
-        free(count);
         return false;
-    }
-
-    // First handle the case where "long" is used with "double"
-    // After this, long can only be with int
-    if (total_specs == 2 && count[TS_LONG] && count[TS_DOUBLE]) {
-        free(count);
-        return true;
     }
 
     // Separate the integer and floating point types
@@ -73,7 +62,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
 
     // Can't have both int and float types
     if (total_int > 0 && total_float > 0) {
-        free(count);
         return false;
     }
 
@@ -82,7 +70,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
         (count[TS_SIGNED] || count[TS_UNSIGNED]) &&
         !(count[TS_CHAR] || count[TS_SHORT] || count[TS_INT] || count[TS_LONG])
     ) {
-        free(count);
         return false;
     }
 
@@ -91,7 +78,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
         count[TS_INT] &&
         count[TS_INT] + count[TS_LONG] + count[TS_SHORT] + count[TS_SIGNED] + count[TS_UNSIGNED] < total_specs
     ) {
-        free(count);
         return false;
     }
 
@@ -100,7 +86,6 @@ static bool validate_type_specs(type_spec_list *tsl) {
         count[TS_CHAR] &&
         count[TS_CHAR] + count[TS_SIGNED] + count[TS_UNSIGNED] < total_specs
     ) {
-        free(count);
         return false;
     }
 
@@ -157,6 +142,13 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs, bool is_pointer_to, b
             sem_type_kind kind = (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION;
 
             // Try to define the current SoU if this is a definition
+            if (!sou->name && sou->decls) {
+                sem_type_t *new_type = make_sou_type(sou);
+                if (!new_type) {
+                    push_error("*** invalid SoU type");
+                    return NULL;
+                }
+            }
             if (sou->decls) sym = sem_define_sou(sou->name, sou);
 
             // Get the current definition
@@ -165,10 +157,10 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs, bool is_pointer_to, b
 
                 if (!sym) {
                     // Declare for the first time
-                    sem_declare_tag(sou->name, kind);
+                    sym = sem_declare_tag(sou->name, kind);
                 } else {
                     // Check for errors with the existing SoU
-                    if (sym->type->kind != kind) {
+                    if (sym->type && sym->type->kind != kind) {
                         if (kind == ST_STRUCT) push_error("*** struct tag used for non-struct");
                         else push_error("*** union tag used for non-union");
                         return NULL;
@@ -190,13 +182,25 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs, bool is_pointer_to, b
             sem_type_t *new_type = alloc_sem_type();
             new_type->kind = kind;
             new_type->quals = quals;
-            new_type->sou_info = sym->type->sou_info;
+            if (sym->type) {
+                printf("Assigning sou_info to a new struct type\n");
+                new_type->sou_info = sym->type->sou_info;
+            }
             return new_type;
         } else if (ts->kind == TS_TYPEDEF) {
             sem_symbol_t *typedef_sym = sem_lookup_typedef(ts->type_name);
             if (!typedef_sym) {
                 push_error("*** typedef does not exist");
                 return NULL;
+            } else {
+                printf("Found typedef symbol: %s with type %s\n", typedef_sym->name, type_to_s(typedef_sym->type));
+                if (typedef_sym->type->kind == ST_STRUCT || typedef_sym->type->kind == ST_UNION) {
+                    if (typedef_sym->type->sou_info) {
+                        printf("SoU info is defined\n");
+                    } else {
+                        printf("SoU info is not defined\n");
+                    }
+                }
             }
             return typedef_sym->type;
         }
@@ -472,8 +476,6 @@ sem_type_t *decl_type(decl_specs *specs, decltr *d, bool is_param) {
     sem_type_t *final = apply_decltr_chain(d, base, is_param);
 
     if (!validate_type(final)) {
-        free_sem_type(final);
-        free_sem_type(base);
         return NULL;
     }
     return final;

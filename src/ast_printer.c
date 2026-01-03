@@ -217,13 +217,13 @@ static void print_type_qual_list(type_qual_list *quals) {
     for (type_qual_list *curr = quals; curr; curr = curr->next) {
         switch (curr->qual) {
             case TQ_CONST:
-                ast_write("const");
+                ast_write("const\n");
                 break;
             case TQ_RESTRICT:
-                ast_write("restrict");
+                ast_write("restrict\n");
                 break;
             case TQ_VOLATILE:
-                ast_write("volatile");
+                ast_write("volatile\n");
                 break;
         }
     }
@@ -281,7 +281,6 @@ static void print_type_spec(type_spec *type) {
             } else {
                 ast_write("%s \"%s\"\n", kind, type->sou->name);
             }
-            free(kind);
             break;
         }
         case TS_ENUM:

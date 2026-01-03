@@ -39,6 +39,10 @@ sem_symbol_t *sem_lookup_tag(const char *name);
 sem_symbol_t *sem_lookup_typedef(const char *name);
 sem_symbol_t *sem_lookup_label(const char *name);
 
+// Debug
+
+void dump_table();
+
 // Free symbol
 
 void free_symbol(sem_symbol_t *sym);

@@ -156,7 +156,7 @@ static bool process_decl(decl *dcl, scope_kind scope) {
             initializer *init = init_d->init;
 
             if (specs->func_spec != FS_NONE) {
-                push_error("*** function specifiers are not implemented yet");
+                push_error("*** function specifiers are not implemented");
                 success = false;
                 continue;
             }
@@ -164,10 +164,11 @@ static bool process_decl(decl *dcl, scope_kind scope) {
             if (scope == SEM_SCOPE_FILE) {
                 if (
                     specs->storage != SC_NONE &&
+                    specs->storage != SC_TYPEDEF &&
                     specs->storage != SC_EXTERN &&
                     specs->storage != SC_STATIC
                 ) {
-                    push_error("*** file scope storage class may only be static or extern");
+                    push_error("*** file scope storage class may only be static, extern, or typedef");
                     success = false;
                     continue;
                 }
@@ -264,6 +265,7 @@ static bool validate_func_header(func_def *func) {
 }
 
 static bool validate_expr(expr *e) {
+    //printf("Validating expression\n");
     sem_type_t *expr_type = type_of_expr(e);
     if (!expr_type) return false;
 
@@ -315,7 +317,7 @@ static bool process_statement(stmt *s) {
             sem_type_t *type = type_of_expr(s->conditional_stmt.cond);
             if (!type) {
                 success = false;
-            } else if (!type_is_scalar(type)) {
+            } else if (!type_is_scalar(type) && type->kind != ST_POINTER) {
                 push_error("*** if statement condition must be a scalar type");
                 success = false;
             }
@@ -444,6 +446,8 @@ static bool traverse_block_list(block_list *block) {
         }
     }
 
+    //dump_table();
+
     return success;
 }
 
@@ -456,9 +460,33 @@ bool traverse_ast(translation_unit *ast) {
         
     for (translation_unit *curr_ed = ast; curr_ed; curr_ed = curr_ed->next) {
         if (curr_ed->action->kind == EXT_DECL_SIMPLE) {
+            printf("Processing file scope declaration\n");
             // Handle declaration
             success = success && process_decl(curr_ed->action->decl, SEM_SCOPE_FILE);
         } else {
+            printf("Processing function\n");
+            //dump_table();
+            {
+                printf("***** checking on list_node::next\n");
+                sem_symbol_t *sym = sem_lookup_tag("list_node");
+                if (!sym->type) {
+                    printf("***** list_node does not have a defined type\n");
+                } else if (sym->type->kind != ST_STRUCT) {
+                    printf("***** list_node is somehow not a struct\n");
+                } else if (!sym->type->sou_info) {
+                    printf("***** list_node is not resolved\n");
+                } else {
+                    sem_member_t *member = get_sou_member(sym->type->sou_info, "next");
+                    if (!member) {
+                        printf("***** list_node lacks member \"next\"\n");
+                    } else if (!member->type) {
+                        printf("***** list_node::next lacks a type\n");
+                    } else if (!member->type->sou_info) {
+                        printf("***** list_node::next is not resolved\n");
+                    }
+                }
+
+            }
             // Function definition
             func_def *func = curr_ed->action->func;
             if (!validate_func_header(func)) {

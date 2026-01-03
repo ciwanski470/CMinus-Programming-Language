@@ -273,7 +273,6 @@ sem_type_t *type_of_expr(expr *e) {
             sem_symbol_t *sym = sem_lookup_id(e->extra.id);
 
             check_error(!sym, "*** identifier not found")
-            check_error(!resolve_sou(sym->type), "*** incomplete sou type is not allowed")
 
             e->type = sym->type;
             return e->type;
@@ -308,6 +307,8 @@ sem_type_t *type_of_expr(expr *e) {
             // No base case; evaluate the left and right
             left_type = type_of_expr(e->left);
             right_type = type_of_expr(e->right);
+            //printf("Left type: %s\n", type_to_s(left_type));
+            //printf("Right type: %s\n", type_to_s(right_type));
     }
 
     // Check if the needed left and right exist
@@ -336,7 +337,7 @@ sem_type_t *type_of_expr(expr *e) {
             expr *args = e->right;
             while (params && args) {
                 check_error(
-                    types_parsable(args->type, params->type) == PARSE_ILLEGAL,
+                    types_parsable(args->type, params->type) != PARSE_IMPLICIT,
                     "*** argument and parameter types do not match"
                 )
                 params = params->next;
@@ -361,9 +362,12 @@ sem_type_t *type_of_expr(expr *e) {
             }
         }
         case EXPR_MEMBER_ARROW: {
+            check_error(!resolve_sou(left_type), "*** cannot dereference incomplete type")
             check_error(
                 left_type->kind != ST_POINTER,
-                "*** can only use arrow member access with a pointer to struct or union"
+                "*** can only use arrow member access with a pointer to struct or union; type: %s; member: %s",
+                type_to_s(left_type),
+                e->extra.id
             )
             left_type = left_type->ptr_target;
             // Falls through into EXPR_MEMBER_DOT
@@ -374,8 +378,11 @@ sem_type_t *type_of_expr(expr *e) {
                 "*** member access only allowed for struct and union types"
             )
 
+            printf("SoU %s accessing member %s\n", left_type->sou_info->name, e->extra.id);
+
             sem_member_t *member = get_sou_member(left_type->sou_info, e->extra.id);
             check_error(!member, "*** member does not exist")
+            check_error(!member->type, "*** member somehow does not have type")
 
             set_return(member->type)
         }
@@ -411,7 +418,10 @@ sem_type_t *type_of_expr(expr *e) {
             )
             set_return(left_type)
         case EXPR_LOGNOT:
-            check_error(!type_is_scalar(left_type), "*** logical not can only be used on scalar types")
+            check_error(
+                !type_is_scalar(left_type) && left_type->kind != ST_POINTER,
+                "*** logical not can only be used on scalar and pointer types"
+            )
             set_return(make_primitive_type(ST_INT, true, 0))
         case EXPR_SIZEOF_EXPR:
             check_error(left_type->kind == ST_FUNC, "*** sizeof type cannot be a function type")
@@ -475,7 +485,7 @@ sem_type_t *type_of_expr(expr *e) {
         case EXPR_CONDITIONAL: {
             sem_type_t *cond_type = type_of_expr(e->extra.conditional);
             check_error(
-                !type_is_integral(cond_type),
+                !type_is_scalar(cond_type) && cond_type->kind != ST_POINTER,
                 "*** conditional expression must be of integer type"
             )
             check_error(
@@ -696,6 +706,18 @@ bool fill_const_val(constant *c, sem_type_t *type) {
 }
 
 parse_req expr_compatible(expr *e, sem_type_t *type) {
+    sem_type_t *e_type = type_of_expr(e);
+    if (type->kind == ST_POINTER && type_is_integral(e_type)) {
+        if (
+            e->kind == EXPR_CONST &&
+            fill_const_val(e->extra.const_val, e_type) &&
+            e->extra.const_val->val.p_val == 0
+        ) {
+            return PARSE_IMPLICIT;
+        } else {
+            push_error("*** integer expression requires must be equal to 0 for implicit cast to pointer");
+        }
+    }
     return types_parsable(type_of_expr(e), type);
 }
 
@@ -717,7 +739,14 @@ parse_req types_parsable(sem_type_t *from, sem_type_t *to) {
         return PARSE_IMPLICIT;
     }
 
-    if (from->kind == ST_ARRAY && to->kind == ST_POINTER) {
+    if (from->kind == ST_POINTER && to->kind == ST_POINTER) {
+        return PARSE_IMPLICIT;
+    }
+
+    if (
+        from->kind == ST_ARRAY && to->kind == ST_POINTER &&
+        types_parsable(from->arr_info.element_type, to->ptr_target)
+    ) {
         return PARSE_EXPLICIT;
     }
 
@@ -785,18 +814,31 @@ int get_char_val(const char *s) {
         s++;
     }
 
+    int escape_vals[256] = {0};
+    escape_vals['a'] = '\a';
+    escape_vals['b'] = '\b';
+    escape_vals['f'] = '\f';
+    escape_vals['n'] = '\n';
+    escape_vals['r'] = '\r';
+    escape_vals['t'] = '\t';
+    escape_vals['v'] = '\v';
+    escape_vals['\\'] = '\\';
+    escape_vals['\''] = '\'';
+    escape_vals['\"'] = '\"';
+    escape_vals['?'] = '\?';
+    escape_vals['0'] = '\0';
+
+    int val = s[1];
+
     if (s[1] == '\\') {
-        if (s[2] == 'n') return (us) ? u'\n' : '\n';
-        if (s[2] == 't') return (us) ? u'\t' : '\t';
-        if (s[2] == '\'') return (us) ? u'\'' : '\'';
-        if (s[2] == '\\') return (us) ? u'\\' : '\\';
+        val = escape_vals[s[2]];
     }
     
     union {
         signed char sc;
         unsigned char uc;
     } u;
-    u.sc = s[1];
+    u.sc = val;
     return (us) ? u.uc : u.sc;
 }
 
@@ -819,7 +861,7 @@ static bool resolve_sou_solver(sem_type_t *sou_type, sou_info_set_t *seen) {
         if (entry->info == info) return false;
     }
 
-    struct sou_info_entry *new_entry = malloc(sizeof(struct sou_info_entry));
+    struct sou_info_entry *new_entry = calloc(1, sizeof(struct sou_info_entry));
     new_entry->info = info;
     new_entry->next = (*seen)[hash];
     (*seen)[hash] = new_entry;
@@ -846,6 +888,8 @@ sem_member_t *get_sou_member(sem_sou_info_t *sou, const char *name) {
 }
 
 sem_type_t *make_sou_type(sou_spec *sou) {
+    printf("Making SoU type\n");
+
     sem_sou_info_t *info = alloc_sou_info();
     sem_member_t *prev_member = NULL;
 
@@ -854,7 +898,7 @@ sem_type_t *make_sou_type(sou_spec *sou) {
         char *id;
         struct entry *next;
     };
-    struct entry *ids[31];
+    struct entry *ids[31] = {NULL};
 
     bool valid = true;
 
@@ -863,7 +907,7 @@ sem_type_t *make_sou_type(sou_spec *sou) {
             // Check for duplicate ids
             size_t hash = str_hash(dctr->decltr->id, 31);
             for (struct entry *curr = ids[hash]; curr; curr = curr->next) {
-                if (strcmp(curr->id, dctr->decltr->id) == 0) {
+                if (curr->id && dctr->decltr->id && strcmp(curr->id, dctr->decltr->id) == 0) {
                     valid = false;
                     goto early_break;
                 }
@@ -871,13 +915,15 @@ sem_type_t *make_sou_type(sou_spec *sou) {
 
             sem_type_t *member_type = decl_type(d->specs, dctr->decltr, false);
             if (!member_type) {
+                push_error("*** SoU member type is invalid");
                 valid = false;
                 goto early_break;
             }
 
-            sem_member_t *new_member = malloc(sizeof(sem_member_t));
+            sem_member_t *new_member = calloc(1, sizeof(sem_member_t));
             new_member->type = member_type;
             new_member->name = dctr->decltr->id;
+            new_member->next = NULL;
             if (prev_member) {
                 prev_member->next = new_member;
             } else {
@@ -887,7 +933,7 @@ sem_type_t *make_sou_type(sou_spec *sou) {
             prev_member = new_member;
 
             // Add this id to the hash table
-            struct entry *new_hash_entry = malloc(sizeof(struct entry));
+            struct entry *new_hash_entry = calloc(1, sizeof(struct entry));
             new_hash_entry->id = dctr->decltr->id;
             new_hash_entry->next = ids[hash];
             ids[hash] = new_hash_entry;

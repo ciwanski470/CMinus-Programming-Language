@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #define HASH_SIZE 127
 
@@ -178,15 +179,21 @@ sem_symbol_t *sem_define_tag(const char *name, sem_type_t *type) {
 
 sem_symbol_t *sem_define_sou(const char *name, sou_spec *sou) {
     if (!curr_scope) return NULL;
+    printf("Defining SoU in symbol table\n");
 
-    sem_type_t *sou_type = make_sou_type(sou);
     const char *name_dup = strdup(name);
-    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TAG, sou_type, true);
+    sem_type_t *placeholder_type = alloc_sem_type();
+    placeholder_type->kind = (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION;
+    sem_symbol_t *new_sym = make_sem_symbol(name_dup, 0, SC_NONE, SEM_NS_TAG, placeholder_type, true);
 
     if (!sem_insert_symbol(new_sym)) {
         free_symbol(new_sym);
         return NULL;
     }
+
+    sem_type_t *sou_type = make_sou_type(sou);
+    new_sym->type->sou_info = sou_type->sou_info;
+
     return new_sym;
 }
 
@@ -251,4 +258,38 @@ sem_symbol_t *sem_lookup_typedef(const char *name) {
 
 sem_symbol_t *sem_lookup_label(const char *name) {
     return lookup_symbol(name, SEM_NS_LABEL);
+}
+
+void dump_table() {
+    printf("--- Dumping symbol table ---\n");
+    for (scope_t *scope = curr_scope; scope; scope = scope->prev) {
+        printf("Printing scope...\n");
+        for (int i=0; i<HASH_SIZE; i++) {
+            for (sym_entry_t *entry = scope->buckets[i]; entry; entry = entry->next) {
+                sem_symbol_t *sym = entry->sym;
+                const char *ns_str;
+                switch (sym->ns) {
+                    case SEM_NS_ENUM: ns_str = "Enum"; break;
+                    case SEM_NS_ID: ns_str = "ID"; break;
+                    case SEM_NS_LABEL: ns_str = "Label"; break;
+                    case SEM_NS_TAG: ns_str = "Tag"; break;
+                    case SEM_NS_TYPEDEF: ns_str = "Typedef"; break;
+                }
+                printf("Namespace: %s\n", ns_str);
+
+                if (sym->name) {
+                    printf("Name: %s\n", sym->name);
+                } else {
+                    printf("Name: None\n");
+                }
+
+                if (sym->type) {
+                    printf("Type: %s\n", type_to_s(sym->type));
+                } else {
+                    printf("Type: None\n");
+                }
+            }
+        }
+    }
+    printf("--- Dump over ---\n");
 }

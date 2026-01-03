@@ -1,20 +1,17 @@
-extern int printf(const char *message, ...);
+typedef unsigned long size_t;
 
-int a = 10;
+extern void *malloc(size_t size);
+extern int printf(const char *format, ...);
 
-int foo(int b) {
-    if (b <= 0) return 0;
-    return (b > 2) ? b + foo(b-1) : b + 1;
-}
+typedef struct list_node {
+    int val;
+    struct list_node *next;
+} list_node_t;
 
 int main() {
-    int sum = 0;
-    for (int i=1; i<=a; i++) {
-        sum += i;
-    }
-    
-    int (*func)(int) = &foo;
-    printf("%d\n", (*func)(sum));
-
-    return 0;
+    list_node_t *a = malloc(sizeof(list_node_t));
+    a->val = 10;
+    a->next = malloc(sizeof(list_node_t));
+    a->next->val = 20;
+    printf("%d %d\n", a->val, a->next->val);
 }
