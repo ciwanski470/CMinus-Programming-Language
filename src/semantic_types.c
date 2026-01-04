@@ -286,7 +286,7 @@ sem_type_t *type_of_expr(expr *e) {
             size_t size = size_of_string_lit(e->extra.str_val);
             check_error(size == SIZE_MAX, "*** string is invalid")
 
-            e->type = make_pointer_type(make_primitive_type(ST_CHAR, true, 0), 0);
+            e->type = make_array_type(make_primitive_type(ST_CHAR, true, 0), size, false);
             return e->type;
         }
         case EXPR_INIT_LIST:
@@ -743,11 +743,15 @@ parse_req types_parsable(sem_type_t *from, sem_type_t *to) {
         return PARSE_IMPLICIT;
     }
 
+    if (from->kind == ST_ARRAY && to->kind == ST_ARRAY) {
+        return PARSE_IMPLICIT;
+    }
+
     if (
-        from->kind == ST_ARRAY && to->kind == ST_POINTER &&
-        types_parsable(from->arr_info.element_type, to->ptr_target)
+        from->kind == ST_ARRAY && to->kind == ST_POINTER
+        //&& types_parsable(from->arr_info.element_type, to->ptr_target)
     ) {
-        return PARSE_EXPLICIT;
+        return PARSE_IMPLICIT;
     }
 
     return PARSE_ILLEGAL;
@@ -804,7 +808,7 @@ size_t size_of_string_lit(const char *s) {
             }
         }
     }
-    return size;
+    return size+1; // +1 for null character
 }
 
 int get_char_val(const char *s) {

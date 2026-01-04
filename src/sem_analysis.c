@@ -129,7 +129,8 @@ static bool process_init_compatibility(sem_type_t *type, initializer *init) {
     parse_req compatibility = expr_compatible(init->assignment, type);
     switch (compatibility) {
         case PARSE_ILLEGAL:
-            push_error("*** initializer does not match declaration type");
+            //dump_table();
+            push_error("*** initializer of type %s does not match declaration type %s", type_to_s(init->assignment->type), type_to_s(type));
             return false;
         case PARSE_EXPLICIT:
             push_error("*** initializer requires explicit type cast");
@@ -460,33 +461,11 @@ bool traverse_ast(translation_unit *ast) {
         
     for (translation_unit *curr_ed = ast; curr_ed; curr_ed = curr_ed->next) {
         if (curr_ed->action->kind == EXT_DECL_SIMPLE) {
-            printf("Processing file scope declaration\n");
+            //printf("Processing file scope declaration\n");
             // Handle declaration
             success = success && process_decl(curr_ed->action->decl, SEM_SCOPE_FILE);
         } else {
-            printf("Processing function\n");
-            //dump_table();
-            {
-                printf("***** checking on list_node::next\n");
-                sem_symbol_t *sym = sem_lookup_tag("list_node");
-                if (!sym->type) {
-                    printf("***** list_node does not have a defined type\n");
-                } else if (sym->type->kind != ST_STRUCT) {
-                    printf("***** list_node is somehow not a struct\n");
-                } else if (!sym->type->sou_info) {
-                    printf("***** list_node is not resolved\n");
-                } else {
-                    sem_member_t *member = get_sou_member(sym->type->sou_info, "next");
-                    if (!member) {
-                        printf("***** list_node lacks member \"next\"\n");
-                    } else if (!member->type) {
-                        printf("***** list_node::next lacks a type\n");
-                    } else if (!member->type->sou_info) {
-                        printf("***** list_node::next is not resolved\n");
-                    }
-                }
-
-            }
+            //printf("Processing function\n");
             // Function definition
             func_def *func = curr_ed->action->func;
             if (!validate_func_header(func)) {
@@ -528,6 +507,8 @@ bool traverse_ast(translation_unit *ast) {
             sem_pop_scope();
 
             func->type = func_type;
+
+            //dump_table();
 
             // Check if the function is void; if not, check for a return statement
             if (

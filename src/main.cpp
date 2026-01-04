@@ -107,16 +107,16 @@ int main(int argc, char *argv[]) {
 
     ast_root = reverse_lists(ast_root, true);
 
-    if (tags & (1 << OUTPUT_AST)) {
-        print_ast(ast_root, "output.ast");
-    }
-
     sem_push_scope();
     bool sem_success = traverse_ast(ast_root);
     sem_pop_scope();
 
     std::cout << error_count << " errors generated\n";
     if (error_count > 0 || !sem_success) return 0;
+
+    if (tags & (1 << OUTPUT_AST)) {
+        print_ast(ast_root, "output.ast");
+    }
 
     /*
         Generate LLVM

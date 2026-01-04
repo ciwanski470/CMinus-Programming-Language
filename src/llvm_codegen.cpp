@@ -34,6 +34,7 @@ extern "C" {
     #include "ast.h"
     #include "error_handling.h"
     #include "string_helpers.h"
+    #include "decl_type.h"
 }
 
 #include <vector>
@@ -193,6 +194,7 @@ static int get_member_index_by_name(sem_sou_info_t *sou, const char *name) {
 }
 
 static Type *sem_type_to_llvm(sem_type_t *t) {
+    assert(t);
     switch (t->kind) {
         case ST_CHAR:       return IntegerType::get(*context, 8);
         case ST_SHORT:      return IntegerType::get(*context, 16);
@@ -275,7 +277,7 @@ static Value *expr_codegen_lvalue(expr *e) {
             return ptr;
         }
         case EXPR_SUBSCRIPT: {
-            Value *base = expr_codegen(e->left);
+            Value *base = expr_codegen_lvalue(e->left);
             Value *idx = expr_codegen(e->right);
             sem_type_t *base_type = e->left->type;
             assert(base && idx);
@@ -364,7 +366,8 @@ static Value *expr_codegen(expr *e) {
             return c;
         }
         case EXPR_STR_LITERAL: {
-            return builder->CreateGlobalString(prepare_str_literal(e->extra.str_val), "str_lit");
+            std::string prepared_literal = prepare_str_literal(e->extra.str_val);
+            return builder->CreateGlobalString(prepared_literal, "str_lit");
         }
         case EXPR_ID: {
             Value *addr = named_values[e->extra.id];
@@ -381,17 +384,34 @@ static Value *expr_codegen(expr *e) {
         case EXPR_CALL: {
             std::vector<Value *> args;
 
+            Value *callee = expr_codegen_lvalue(e->left);
+            FunctionType *callee_type = cast<FunctionType>(sem_type_to_llvm(e->left->type));
+
+            assert(callee);
+            assert(callee_type);
+
+            unsigned int i = 0;
             expr *arg_node = e->right;
             expr *curr = arg_node;
             while (curr) {
-                args.push_back(expr_codegen(curr->left));
+                Value *arg = nullptr;
+                if (i < callee_type->getNumParams()) {
+                    Type *param_type = callee_type->getParamType(i);
+                    if (param_type->isPointerTy()) {
+                        if (
+                            sem_type_to_llvm(curr->left->type)->isArrayTy() &&
+                            curr->left->kind != EXPR_STR_LITERAL
+                        ) {
+                            arg = expr_codegen_lvalue(curr->left);
+                        }
+                    }
+                    i++;
+                }
+                if (!arg) arg = expr_codegen(curr->left);
+                args.push_back(arg);
                 curr = curr->right;
             }
 
-            Value *callee = expr_codegen_lvalue(e->left);
-            FunctionType *callee_type = cast<FunctionType>(sem_type_to_llvm(e->left->type));
-            assert(callee);
-            assert(callee_type);
             return builder->CreateCall(callee_type, callee, args, "calltmp");
         }
 
@@ -978,17 +998,18 @@ static void stmt_codegen(stmt *s) {
 
 static void decl_codegen(decl *d, bool is_global) {
     for (init_decltr *curr = d->init_decltrs; curr; curr = curr->next) {
-        sem_type_t *decl_type = curr->type;
-        assert(decl_type);
+        sem_type_t *d_type = curr->type;
+        if (!d_type) d_type = decl_type(d->specs, curr->decltr, false);
+        assert(d_type);
         
         // Function declaration is guaranteed to be at file scope
-        if (decl_type->kind == ST_FUNC) {
-            Type *ret = sem_type_to_llvm(decl_type->func_info.return_type);
+        if (d_type->kind == ST_FUNC) {
+            Type *ret = sem_type_to_llvm(d_type->func_info.return_type);
             std::vector<Type *> param_types;
-            for (sem_type_list_t *tl = decl_type->func_info.params; tl; tl = tl->next) {
+            for (sem_type_list_t *tl = d_type->func_info.params; tl; tl = tl->next) {
                 param_types.push_back(sem_type_to_llvm(tl->type));
             }
-            FunctionType *ft = FunctionType::get(ret, param_types, decl_type->func_info.variadic);
+            FunctionType *ft = FunctionType::get(ret, param_types, d_type->func_info.variadic);
 
             GlobalValue::LinkageTypes linkage =
                 (d->specs->storage == SC_STATIC) ? Function::InternalLinkage : Function::ExternalLinkage;
@@ -1022,6 +1043,25 @@ static void decl_codegen(decl *d, bool is_global) {
                 expr *assignment = curr->init->assignment;
                 if (assignment->kind == EXPR_CONST) {
                     init = constant_to_llvm(assignment->extra.const_val, assignment->type);
+                } else if (assignment->kind == EXPR_STR_LITERAL) {
+                    std::string prepared_string = prepare_str_literal(assignment->extra.str_val);
+                    Constant *str_const = ConstantDataArray::getString(*context, prepared_string);
+
+                    GlobalValue::LinkageTypes linkage =
+                        (d->specs->storage == SC_STATIC) ?
+                            GlobalValue::InternalLinkage :
+                            GlobalValue::ExternalLinkage;
+
+                    GlobalVariable *var = new GlobalVariable(
+                        str_const->getType(),
+                        curr->type->quals & TQ_CONST_MASK,
+                        linkage,
+                        str_const,
+                        curr->decltr->id
+                    );
+                    llvm_module->insertGlobalVariable(var);
+                    named_values.push(curr->decltr->id, var);
+                    continue;
                 }
             }
 
@@ -1032,7 +1072,7 @@ static void decl_codegen(decl *d, bool is_global) {
 
             GlobalVariable *var = new GlobalVariable(
                 t,
-                decl_type->quals & TQ_CONST_MASK,
+                d_type->quals & TQ_CONST_MASK,
                 linkage,
                 init,
                 curr->decltr->id

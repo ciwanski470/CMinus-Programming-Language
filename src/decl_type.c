@@ -137,70 +137,66 @@ static sem_type_t *type_from_decl_specs(decl_specs *specs, bool is_pointer_to, b
             new_type->quals = quals;
             return new_type;
         } else if (ts->kind == TS_SOU) {
+            push_error("*** we are not doing structs or unions");
+            return NULL;
+
+            // Dead code below
+
             sou_spec *sou = ts->sou;
-            sem_symbol_t *sym = NULL;
             sem_type_kind kind = (sou->kind == SOU_STRUCT) ? ST_STRUCT : ST_UNION;
 
-            // Try to define the current SoU if this is a definition
-            if (!sou->name && sou->decls) {
-                sem_type_t *new_type = make_sou_type(sou);
-                if (!new_type) {
-                    push_error("*** invalid SoU type");
-                    return NULL;
-                }
-            }
-            if (sou->decls) sym = sem_define_sou(sou->name, sou);
-
-            // Get the current definition
-            if (!sym) {
-                sym = sem_lookup_tag(sou->name);
-
-                if (!sym) {
-                    // Declare for the first time
-                    sym = sem_declare_tag(sou->name, kind);
+            // New SoU
+            if (sou->decls) {
+                if (sou->name) {
+                    // Definition
+                    sem_symbol_t *sym = sem_define_sou(sou->name, sou);
+                    if (sym) {
+                        return sym->type;
+                    } else {
+                        push_error("*** invalid SoU definition");
+                        return NULL;
+                    }
                 } else {
-                    // Check for errors with the existing SoU
+                    // Anonymous SoU
+                    sem_type_t *type = make_sou_type(sou);
+                    if (type) {
+                        return type;
+                    } else {
+                        push_error("*** invalid SoU definition");
+                        return NULL;
+                    }
+                }
+            } else {
+                sem_symbol_t *sym = sem_lookup_tag(sou->name);
+                if (sym) {
+                    // Already declared/defined SoU
                     if (sym->type && sym->type->kind != kind) {
                         if (kind == ST_STRUCT) push_error("*** struct tag used for non-struct");
                         else push_error("*** union tag used for non-union");
                         return NULL;
                     }
-
-                    if (sou->decls) {
-                        push_error("*** illegal redefinition of a struct or union");
+                } else {
+                    // Incomplete type
+                    sym = sem_declare_tag(sou->name, kind);
+                    if (!sym) {
+                        push_error("*** can't declare struct?");
                         return NULL;
                     }
                 }
-            }
 
-            // See if we can use the SoU here
-            if (is_decl && !is_pointer_to && !resolve_sou(sym->type)) {
-                push_error("*** incomplete type may only be used as a pointer");
-                return NULL;
+                // See if using this SoU is valid
+                if (is_decl && !is_pointer_to && !resolve_sou(sym->type)) {
+                    push_error("*** incomplete type may only be used as a pointer");
+                    return NULL;
+                }
+
+                return sym->type;
             }
-            
-            sem_type_t *new_type = alloc_sem_type();
-            new_type->kind = kind;
-            new_type->quals = quals;
-            if (sym->type) {
-                printf("Assigning sou_info to a new struct type\n");
-                new_type->sou_info = sym->type->sou_info;
-            }
-            return new_type;
         } else if (ts->kind == TS_TYPEDEF) {
             sem_symbol_t *typedef_sym = sem_lookup_typedef(ts->type_name);
             if (!typedef_sym) {
                 push_error("*** typedef does not exist");
                 return NULL;
-            } else {
-                printf("Found typedef symbol: %s with type %s\n", typedef_sym->name, type_to_s(typedef_sym->type));
-                if (typedef_sym->type->kind == ST_STRUCT || typedef_sym->type->kind == ST_UNION) {
-                    if (typedef_sym->type->sou_info) {
-                        printf("SoU info is defined\n");
-                    } else {
-                        printf("SoU info is not defined\n");
-                    }
-                }
             }
             return typedef_sym->type;
         }
@@ -265,6 +261,8 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
         return make_pointer_type(NULL, make_qual_mask(d->array.quals));
     }
 
+    //printf("Not a param\n");
+
     // Non-parameter array declarations are actual arrays
 
     if (!d->array.size) {
@@ -273,10 +271,19 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
         return NULL;
     }
 
+    //printf("Has size\n");
+
+    if (!type_of_expr(d->array.size)) {
+        push_error("*** array size has invalid expression");
+        return NULL;
+    }
+
     if (!fold_constants(d->array.size)) {
         push_error("*** non-constant array size not allowed");
         return NULL;
     }
+
+    //printf("Size is constant\n");
 
     constant *const_val = d->array.size->extra.const_val;
     if (const_val->kind != CONSTANT_INT) {
@@ -284,10 +291,14 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
         return NULL;
     }
 
+    //printf("Size is constant int\n");
+
     if ((~((~0u) | (0ull))) & const_val->val.bits) {
         push_error("array size must fit in 32 bits");
         return NULL;
     }
+
+    //printf("Size fits in 32 bits\n");
 
     // This condition may have to change when struct constant is changed
     union {
@@ -307,6 +318,8 @@ static sem_type_t *process_array_declarator(decltr *d, bool is_param) {
     } else {
         size = u.u_int;
     }
+
+    //printf("Made array type\n");
 
     return make_array_type(NULL, size, false);
 }
