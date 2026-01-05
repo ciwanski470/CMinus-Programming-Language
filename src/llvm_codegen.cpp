@@ -371,13 +371,16 @@ static Value *expr_codegen(expr *e) {
         }
         case EXPR_ID: {
             Value *addr = named_values[e->extra.id];
-            if (!addr) {
-                std::cout << e->extra.id << "\n";
-                named_values.print_defined();
-            }
             assert(addr);
             if (!addr->getType()->isPointerTy()) return addr;
+            
             Type *t = sem_type_to_llvm(e->type);
+            
+            // Arrays decay to pointers as rvalues
+            if (t->isArrayTy()) {
+                return addr;
+            }
+            
             return builder->CreateLoad(t, addr, std::string(e->extra.id));
         }
 
@@ -689,12 +692,12 @@ static Value *expr_codegen(expr *e) {
             Value *updated = nullptr;
             if (e->kind == EXPR_PRE_INCR || e->kind == EXPR_POST_INCR) {
                 updated = t->isFloatingPointTy() ?
-                    builder->CreateFAdd(lval, one, "faddtmp") :
-                    builder->CreateAdd(lval, one, "addtmp");
+                    builder->CreateFAdd(curr, one, "faddtmp") :
+                    builder->CreateAdd(curr, one, "addtmp");
             } else {
                 updated = t->isFloatingPointTy() ?
-                    builder->CreateFSub(lval, one, "fsubtmp") :
-                    builder->CreateAdd(lval, one, "subtmp");
+                    builder->CreateFSub(curr, one, "fsubtmp") :
+                    builder->CreateAdd(curr, one, "subtmp");
             }
 
             builder->CreateStore(updated, lval);
@@ -937,6 +940,7 @@ static void stmt_codegen(stmt *s) {
             Function *curr_func = builder->GetInsertBlock()->getParent();
             BasicBlock *cond_block = BasicBlock::Create(*context, "for.cond", curr_func);
             BasicBlock *body_block = BasicBlock::Create(*context, "for.body", curr_func);
+            BasicBlock *incr_block = BasicBlock::Create(*context, "for.incr", curr_func);
             BasicBlock *end_block = BasicBlock::Create(*context, "for.end", curr_func);
 
             builder->CreateBr(cond_block);
@@ -948,13 +952,20 @@ static void stmt_codegen(stmt *s) {
 
             builder->SetInsertPoint(body_block);
             break_dest.push(end_block);
-            continue_dest.push(cond_block);
+            continue_dest.push(incr_block);
             stmt_codegen(s->for_stmt.body);
 
-            branch_to(cond_block);
+            branch_to(incr_block);
+
+            builder->SetInsertPoint(incr_block);
+            expr_codegen(s->for_stmt.update);
+            builder->CreateBr(cond_block);
+
             builder->SetInsertPoint(end_block);
             break_dest.pop();
             continue_dest.pop();
+
+            pop_scope();
 
             break;
         }
@@ -1029,7 +1040,26 @@ static void decl_codegen(decl *d, bool is_global) {
             
             if (curr->init && curr->init->kind == INIT_EXPR) {
                 Value *init = expr_codegen(curr->init->assignment);
-                if (init) builder->CreateStore(init, var);
+                if (init) {
+                    Type *var_type = sem_type_to_llvm(curr->type);
+                    // If we're initializing an array with a pointer (string literal)
+                    if (var_type->isArrayTy() && init->getType()->isPointerTy()) {
+                        ArrayType *arr_type = cast<ArrayType>(var_type);
+                        const DataLayout &layout = llvm_module->getDataLayout();
+                        uint64_t size = layout.getTypeAllocSize(arr_type);
+                        
+                        // Use memcpy to initialize the array
+                        builder->CreateMemCpy(
+                            var,
+                            MaybeAlign(1),
+                            init,
+                            MaybeAlign(1),
+                            size
+                        );
+                    } else {
+                        builder->CreateStore(init, var);
+                    }
+                }
             }
 
             std::string name(curr->decltr->id);
