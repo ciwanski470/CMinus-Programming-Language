@@ -1,5 +1,7 @@
 /*
     Implementation of "type_table.h"
+
+    Does nothing; this code is unused in the project
 */
 
 #include "type_table.h"

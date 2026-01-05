@@ -11,7 +11,7 @@ int main() {
         for (int j=0; j<54; j++) {
             curr[i] = alphabet[j];
             printf("%s\n", curr);
-            usleep(10000ul);
+            usleep(5000ul);
             if (curr[i] == s[i]) break;
         }
     }

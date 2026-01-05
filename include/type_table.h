@@ -6,7 +6,8 @@
 
     Note that no function in this file will report errors
 
-    this file does NOTHING
+    This file does NOTHING and is not used in the project
+    It's only here to keep as an artifact
 */
 
 #pragma once
