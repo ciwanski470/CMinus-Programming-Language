@@ -10,8 +10,10 @@ It is also less optimized than GCC and Clang (obviously).
 Why would you want to install this?
 
 ## Usage Instructions
-Compile it yourself and then run "./main \[filename\]".
-This generates an object file that you'll have to link manually using something like clang.
+* Compile it yourself and then run "./main \[filename\]".
+* This generates an object file that you'll have to link manually using something like clang.
+* Don't worry about the target machine language. If it runs, the machine code should be valid.
+* You can give the executable a different name by modifying the Makefile.
 
 ## Features
 * Properly lexes the given program, consuming comments
