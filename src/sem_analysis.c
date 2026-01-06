@@ -130,7 +130,7 @@ static bool process_init_compatibility(sem_type_t *type, initializer *init) {
     switch (compatibility) {
         case PARSE_ILLEGAL:
             //dump_table();
-            push_error("*** initializer of type %s does not match declaration type %s", type_to_s(init->assignment->type), type_to_s(type));
+            push_error("*** initializer does not match declaration type");
             return false;
         case PARSE_EXPLICIT:
             push_error("*** initializer requires explicit type cast");

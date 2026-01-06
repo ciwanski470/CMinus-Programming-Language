@@ -431,7 +431,6 @@ static Value *expr_codegen(expr *e) {
             Type *t = sem_type_to_llvm(e->type);
             assert(v && t);
             t->print(outs());
-            std::cout << type_to_s(e->type) << std::endl;
             return builder->CreateLoad(t, v);
         }
         case EXPR_ADDREF: {
@@ -1150,7 +1149,7 @@ static void func_codegen(func_def *fd) {
 
     if (verifyFunction(*func)) {
         // This should not happen
-        std::cout << "function generation failed: that error should've been caught earlier\n";
+        errs() << "function generation failed: that error should've been caught earlier\n";
     }
 }
 

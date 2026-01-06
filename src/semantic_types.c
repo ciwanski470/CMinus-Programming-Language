@@ -307,8 +307,6 @@ sem_type_t *type_of_expr(expr *e) {
             // No base case; evaluate the left and right
             left_type = type_of_expr(e->left);
             right_type = type_of_expr(e->right);
-            //printf("Left type: %s\n", type_to_s(left_type));
-            //printf("Right type: %s\n", type_to_s(right_type));
     }
 
     // Check if the needed left and right exist
@@ -365,9 +363,7 @@ sem_type_t *type_of_expr(expr *e) {
             check_error(!resolve_sou(left_type), "*** cannot dereference incomplete type")
             check_error(
                 left_type->kind != ST_POINTER,
-                "*** can only use arrow member access with a pointer to struct or union; type: %s; member: %s",
-                type_to_s(left_type),
-                e->extra.id
+                "*** can only use arrow member access with a pointer to struct or union",
             )
             left_type = left_type->ptr_target;
             // Falls through into EXPR_MEMBER_DOT
@@ -491,8 +487,7 @@ sem_type_t *type_of_expr(expr *e) {
             check_error(
                 types_parsable(left_type, right_type) != PARSE_IMPLICIT ||
                 types_parsable(right_type, left_type) != PARSE_IMPLICIT,
-                "*** ternary expression requires both results to be of similar type; left type: %s; right type: %s",
-                type_to_s(left_type), type_to_s(right_type)
+                "*** ternary expression requires both results to be of similar type",
             )
             set_return(left_type) // right_type works too
         }
