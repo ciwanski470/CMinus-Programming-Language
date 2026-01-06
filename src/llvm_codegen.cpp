@@ -194,6 +194,9 @@ static int get_member_index_by_name(sem_sou_info_t *sou, const char *name) {
 }
 
 static Type *sem_type_to_llvm(sem_type_t *t) {
+    if (!t) {
+        write_module_to_file(*llvm_module, "llvm_error_module.ll");
+    }
     assert(t);
     switch (t->kind) {
         case ST_CHAR:       return IntegerType::get(*context, 8);
@@ -231,13 +234,9 @@ static Type *sem_type_to_llvm(sem_type_t *t) {
 
 static Constant *constant_to_llvm(constant *c, sem_type_t *t) {
     if (t->kind == ST_FLOAT) {
-        uint32_t bits = (uint32_t) c->val.bits;
-        APFloat apf(APFloat::IEEEsingle(), APInt(32, bits));
-        return ConstantFP::get(*context, apf);
+        return ConstantFP::get(Type::getFloatTy(*context), c->val.f_val);
     } else if (t->kind == ST_DOUBLE) {
-        uint64_t bits = c->val.bits;
-        APFloat apf(APFloat::IEEEdouble(), APInt(64, bits));
-        return ConstantFP::get(*context, apf);
+        return ConstantFP::get(Type::getDoubleTy(*context), c->val.d_val);
     } else if (t->kind == ST_BOOL) {
         uint64_t val = c->val.ui_val ? 1ull : 0ull;
         return ConstantInt::get(Type::getInt1Ty(*context), val, false);
@@ -556,15 +555,19 @@ static Value *expr_codegen(expr *e) {
                 if (!ltype->isFloatingPointTy()) {
                     if (e->left->type->is_signed) {
                         l = builder->CreateSIToFP(l, rtype);
+                        ltype = l->getType();
                     } else {
                         l = builder->CreateUIToFP(l, rtype);
+                        ltype = l->getType();
                     }
                 }
                 if (!rtype->isFloatingPointTy()) {
                     if (e->right->type->is_signed) {
                         r = builder->CreateSIToFP(r, ltype);
+                        rtype = r->getType();
                     } else {
                         r = builder->CreateUIToFP(r, ltype);
+                        rtype = r->getType();
                     }
                 }
 
@@ -572,8 +575,10 @@ static Value *expr_codegen(expr *e) {
                 if (ltype != rtype) {
                     if (ltype->getPrimitiveSizeInBits() < rtype->getPrimitiveSizeInBits()) {
                         l = builder->CreateFPExt(l, rtype, "fpext");
+                        ltype = l->getType();
                     } else {
                         r = builder->CreateFPExt(r, ltype, "fpext");
+                        rtype = r->getType();
                     }
                 }
 
@@ -1008,6 +1013,8 @@ static void stmt_codegen(stmt *s) {
 }
 
 static void decl_codegen(decl *d, bool is_global) {
+    if (d->specs->storage == SC_TYPEDEF) return;
+
     for (init_decltr *curr = d->init_decltrs; curr; curr = curr->next) {
         sem_type_t *d_type = curr->type;
         if (!d_type) d_type = decl_type(d->specs, curr->decltr, false);

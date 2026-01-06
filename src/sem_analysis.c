@@ -202,6 +202,7 @@ static bool process_decl(decl *dcl, scope_kind scope) {
 
             // Potentially valid typedef declaration
             if (specs->storage == SC_TYPEDEF) {
+                init_d->type = type;
                 sem_symbol_t *sym = sem_define_typedef(d->id, type);
                 if (!sym) {
                     push_error("*** invalid redefinition of a typedef");

@@ -94,17 +94,17 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    std::string output_name(basename);
-    output_name.append(".ll");
-    write_module_to_file(*llvm_module, output_name);
+    std::string llvm_output_name(basename);
+    llvm_output_name.append(".ll");
+    write_module_to_file(*llvm_module, llvm_output_name);
 
     /*
         Emit object file
     */
 
-    std::string output_name(basename);
-    output_name.append(".o");
-    module_to_obj(*llvm_module, output_name, llvm::OptimizationLevel::O0);
+    std::string obj_output_name(basename);
+    obj_output_name.append(".o");
+    module_to_obj(*llvm_module, obj_output_name, llvm::OptimizationLevel::O0);
 
     llvm_module.release();
     context.release();
