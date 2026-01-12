@@ -843,7 +843,7 @@ static void stmt_codegen(stmt *s) {
             BasicBlock *end_block = BasicBlock::Create(*context, "switch.end", curr_func);
 
             Value *cond = expr_codegen(s->conditional_stmt.cond);
-            switch_stmts.push(builder->CreateSwitch(cond, nullptr));
+            switch_stmts.push(builder->CreateSwitch(cond, end_block));
             break_dest.push(end_block);
 
             stmt_codegen(s->conditional_stmt.body);
