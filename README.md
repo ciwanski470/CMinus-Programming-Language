@@ -24,6 +24,7 @@ Why would you want to install this?
 * Accurately (I think) reports errors (although does not tell you where those errors are)
 * Generates LLVM
 * Lowers LLVM into an object file
+* You can compare pointer to float/double
 
 ## Features not available in this implementation
 * Backwards compatibility with old K&R C features. Namely, the K&R function definition (nobody uses this) and implicit return types.
